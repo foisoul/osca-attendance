@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OSCA Attendance - Smart Reader</title>
+  <title>OSCA Smart Attendance</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
@@ -29,7 +29,7 @@
 
     #reader, #ocr-area {
       width: 100%; border-radius: 12px; overflow: hidden;
-      background: #1e293b; min-height: 240px; position: relative;
+      background: #1e293b; min-height: 250px; position: relative;
     }
     #ocr-area { display: none; }
     #ocr-area video { width: 100%; display: block; }
@@ -37,16 +37,21 @@
     .guide-frame {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 87%; height: 56%;
+      width: 86%; height: 55%;
       border: 3px solid #22c55e;
       border-radius: 10px;
       pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.38);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
+      transition: border-color 0.3s;
     }
-    .guide-label {
-      position: absolute; bottom: 10px; left: 0; right: 0;
-      text-align: center; color: white; font-size: 0.84rem;
-      text-shadow: 0 1px 4px black; pointer-events: none;
+    .guide-frame.ready { border-color: #eab308; }
+    .guide-frame.capturing { border-color: #3b82f6; }
+
+    .status-label {
+      position: absolute; bottom: 12px; left: 0; right: 0;
+      text-align: center; color: white; font-size: 0.88rem;
+      font-weight: 500; text-shadow: 0 1px 4px black;
+      pointer-events: none;
     }
 
     .result-box {
@@ -65,10 +70,10 @@
       border: none; border-radius: 10px; font-size: 0.95rem;
       font-weight: 600; cursor: pointer;
     }
-    .btn-primary { background: #3b82f6; color: white; }
     .btn-success { background: #16a34a; color: white; }
     .btn-warning { background: #d97706; color: white; }
     .btn-secondary { background: #334155; color: white; }
+    .btn-primary { background: #3b82f6; color: white; }
 
     .edit-box {
       background: #1e293b; border-radius: 11px; padding: 13px;
@@ -84,8 +89,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>OSCA Attendance</h1>
-    <p class="subtitle">Smart Reader</p>
+    <h1>OSCA Smart Attendance</h1>
+    <p class="subtitle">Auto-Capture ID Reader</p>
 
     <div class="step-indicator">
       <div class="step active" id="step1">1. QR</div>
@@ -96,8 +101,8 @@
     <div id="reader"></div>
 
     <div id="ocr-area">
-      <div class="guide-frame"></div>
-      <div class="guide-label">Place the ID card inside the green frame</div>
+      <div class="guide-frame" id="guide"></div>
+      <div class="status-label" id="statusLabel">Place ID card inside the frame</div>
     </div>
 
     <div id="result" class="result-box"></div>
@@ -106,33 +111,28 @@
       <label>OSCA ID (from QR)</label>
       <input type="text" id="edit-id" readonly>
 
-      <label>Full Name (you can edit)</label>
+      <label>Full Name (edit if needed)</label>
       <input type="text" id="edit-name" placeholder="Detected name">
 
-      <label>Raw detected text</label>
+      <label>Detected text</label>
       <textarea id="edit-raw" rows="3" style="font-size:0.8rem; color:#94a3b8;"></textarea>
     </div>
 
-    <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="smartCapture()">
-      Smart Capture
-    </button>
-    <button class="btn btn-warning" id="btn-retake" style="display:none;" onclick="retake()">
-      Retake
-    </button>
-    <button class="btn btn-success" id="btn-save" style="display:none;" onclick="saveFinal()">
-      Save Attendance
-    </button>
+    <button class="btn btn-warning" id="btn-retake" style="display:none;" onclick="retake()">Retake ID Card</button>
+    <button class="btn btn-success" id="btn-save" style="display:none;" onclick="saveFinal()">Save Attendance</button>
     <button class="btn btn-secondary" onclick="restart()">Start Over</button>
   </div>
 
   <script>
-    // ========== PASTE YOUR REAL GOOGLE SCRIPT URL ==========
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlrjeYzjjFQh3b8CFBtYc8mkPEChHley_xO2914EAGdwO0lr5Osa3zjdlfEZsWOhOj/exec";
-    // ======================================================
+    // ========== PASTE YOUR REAL SCRIPT URL HERE ==========
+   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlrjeYzjjFQh3b8CFBtYc8mkPEChHley_xO2914EAGdwO0lr5Osa3zjdlfEZsWOhOj/exec";
+    // ====================================================
 
     let html5QrCode = null;
     let videoStream = null;
     let currentStep = 1;
+    let analyzing = false;
+    let autoTimer = null;
     let collected = { oscaId: "", fullName: "", raw: "" };
 
     function setStep(s) {
@@ -142,7 +142,6 @@
       document.getElementById("step3").className = "step" + (s===3?" active":"");
       document.getElementById("reader").style.display = s===1 ? "block" : "none";
       document.getElementById("ocr-area").style.display = s===2 ? "block" : "none";
-      document.getElementById("btn-capture").style.display = s===2 ? "block" : "none";
       document.getElementById("btn-retake").style.display = s===3 ? "block" : "none";
       document.getElementById("btn-save").style.display = s===3 ? "block" : "none";
       document.getElementById("edit-box").style.display = s===3 ? "block" : "none";
@@ -150,10 +149,14 @@
 
     function restart() {
       collected = { oscaId: "", fullName: "", raw: "" };
+      analyzing = false;
+      clearTimeout(autoTimer);
       document.getElementById("result").classList.remove("show");
       document.getElementById("edit-id").value = "";
       document.getElementById("edit-name").value = "";
       document.getElementById("edit-raw").value = "";
+      document.getElementById("guide").className = "guide-frame";
+      document.getElementById("statusLabel").innerText = "Place ID card inside the frame";
       stopQR(); stopCam();
       setStep(1);
       startQR();
@@ -171,9 +174,10 @@
         if (m) id = m[0];
       }
       collected.oscaId = id;
-      show("QR captured!\n\nNow place the physical ID card inside the green frame and tap Smart Capture.", "success");
+      show("QR captured successfully!\n\nNow point the camera at the physical ID card.\nIt will capture automatically when ready.", "success");
       setStep(2);
       startCam();
+      startAutoDetect();
     }
 
     function startQR() {
@@ -187,7 +191,7 @@
       if (html5QrCode) html5QrCode.stop().then(()=>{html5QrCode.clear();html5QrCode=null;}).catch(()=>{html5QrCode=null;});
     }
 
-    // ===== Camera =====
+    // ===== Camera + Auto Detect =====
     async function startCam() {
       const area = document.getElementById("ocr-area");
       try {
@@ -208,46 +212,96 @@
         show("Camera error: " + e.message, "error");
       }
     }
+
     function stopCam() {
-      if (videoStream) { videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; }
+      if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+        videoStream = null;
+      }
+      clearTimeout(autoTimer);
+      analyzing = false;
     }
 
-    // ===== SMART CAPTURE =====
-    async function smartCapture() {
+    function startAutoDetect() {
+      if (currentStep !== 2) return;
+      analyzing = false;
+      document.getElementById("statusLabel").innerText = "Looking for ID card...";
+      document.getElementById("guide").className = "guide-frame";
+
+      // Check every 1.8 seconds
+      autoTimer = setInterval(async () => {
+        if (currentStep !== 2 || analyzing) return;
+        await tryAutoCapture();
+      }, 1800);
+    }
+
+    async function tryAutoCapture() {
       const video = document.querySelector("#ocr-area video");
-      if (!video || video.videoWidth === 0) {
-        show("Camera not ready. Wait a second.", "warning");
+      if (!video || video.videoWidth === 0) return;
+
+      analyzing = true;
+      document.getElementById("statusLabel").innerText = "Checking card...";
+      document.getElementById("guide").className = "guide-frame ready";
+
+      // Quick low-res snapshot for detection
+      const canvas = document.createElement("canvas");
+      const scale = 0.4;
+      canvas.width = video.videoWidth * scale;
+      canvas.height = video.videoHeight * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Simple brightness / contrast check (very basic "is there a card?")
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 16) sum += data[i];
+      const avg = sum / (data.length / 16);
+
+      // If too dark or too bright, skip
+      if (avg < 40 || avg > 220) {
+        document.getElementById("statusLabel").innerText = "Adjust lighting / position";
+        document.getElementById("guide").className = "guide-frame";
+        analyzing = false;
         return;
       }
 
-      show("Analyzing card position & reading...", "info");
+      // Looks promising → do full capture + OCR
+      document.getElementById("statusLabel").innerText = "Card detected! Reading...";
+      document.getElementById("guide").className = "guide-frame capturing";
+      clearInterval(autoTimer);
 
-      // Capture
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0);
+      await fullOCR(video);
+    }
 
-      // Enhance
-      const img = ctx.getImageData(0,0,canvas.width,canvas.height);
-      const d = img.data;
-      for (let i=0; i<d.length; i+=4) {
-        const avg = (d[i]+d[i+1]+d[i+2])/3;
-        const v = avg > 125 ? Math.min(255, avg*1.25) : Math.max(0, avg*0.75);
-        d[i]=d[i+1]=d[i+2]=v;
-      }
-      ctx.putImageData(img,0,0);
+    async function fullOCR(video) {
+      try {
+        // High quality capture
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0);
 
-      // Smart orientation decision: try 0° and 90° first (most common)
-      const angles = [0, 90, 180, 270];
-      let best = { text: "", score: 0, name: "", angle: 0 };
+        // Enhance
+        const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const d = imgData.data;
+        for (let i=0; i<d.length; i+=4) {
+          const avg = (d[i]+d[i+1]+d[i+2])/3;
+          const v = avg > 120 ? Math.min(255, avg*1.2) : Math.max(0, avg*0.75);
+          d[i]=d[i+1]=d[i+2]=v;
+        }
+        ctx.putImageData(imgData,0,0);
 
-      for (let angle of angles) {
-        const rotated = rotate(canvas, angle);
-        const url = rotated.toDataURL("image/jpeg", 0.88);
+        show("Reading ID card...\nPlease hold steady", "info");
 
-        try {
+        // Try main orientations
+        const angles = [0, 90];
+        let best = { text:"", score:0, name:"" };
+
+        for (let angle of angles) {
+          const rotated = rotate(canvas, angle);
+          const url = rotated.toDataURL("image/jpeg", 0.9);
+
           const res = await Tesseract.recognize(url, "eng", {
             logger: m => {
               if (m.status === "recognizing text") {
@@ -258,47 +312,51 @@
 
           const text = res.data.text.trim();
           const conf = res.data.confidence || 0;
-          const score = text.length * 0.6 + conf * 0.4;
+          const score = text.length + conf;
 
-          if (score > best.score && text.length > 18) {
-            best = {
-              text: text,
-              score: score,
-              name: extractSmartName(text),
-              angle: angle
-            };
+          if (score > best.score && text.length > 20) {
+            best = { text, score, name: extractName(text) };
           }
-        } catch(e) {}
+        }
+
+        if (best.score < 30 || best.text.length < 22) {
+          show("Could not read clearly.\n\nPlease adjust position and lighting.\nTrying again...", "warning");
+          document.getElementById("statusLabel").innerText = "Please reposition the card";
+          document.getElementById("guide").className = "guide-frame";
+          analyzing = false;
+          startAutoDetect();
+          return;
+        }
+
+        // Success
+        collected.raw = best.text;
+        collected.fullName = best.name;
+
+        document.getElementById("edit-id").value = collected.oscaId;
+        document.getElementById("edit-name").value = best.name || "";
+        document.getElementById("edit-raw").value = best.text;
+
+        if (!best.name || best.name.length < 6) {
+          show("Text read, but name needs checking.\nPlease correct it below.", "warning");
+        } else {
+          show("ID card read successfully!\nPlease verify the name.", "success");
+        }
+
+        setStep(3);
+        stopCam();
+
+      } catch (err) {
+        show("Reading error. Trying again...", "error");
+        analyzing = false;
+        startAutoDetect();
       }
-
-      if (best.score < 25 || best.text.length < 20) {
-        show("Reading quality too low.\n\nPlease retake:\n• Better lighting\n• Fill the green frame\n• Hold steady", "error");
-        return;
-      }
-
-      collected.raw = best.text;
-      collected.fullName = best.name;
-
-      document.getElementById("edit-id").value = collected.oscaId;
-      document.getElementById("edit-name").value = best.name || "";
-      document.getElementById("edit-raw").value = best.text;
-
-      if (!best.name || best.name.length < 6) {
-        show("Text read successfully but name is unclear.\nPlease type the correct name.", "warning");
-      } else {
-        show(`Good reading (orientation ${best.angle}°)\n\nPlease verify the name.`, "success");
-      }
-
-      setStep(3);
-      stopCam();
     }
 
     function rotate(src, deg) {
       const rad = deg * Math.PI / 180;
       const w = src.width, h = src.height;
       const c = document.createElement("canvas");
-      if (deg % 180 === 0) { c.width = w; c.height = h; }
-      else { c.width = h; c.height = w; }
+      if (deg % 180 === 0) { c.width=w; c.height=h; } else { c.width=h; c.height=w; }
       const ctx = c.getContext("2d");
       ctx.translate(c.width/2, c.height/2);
       ctx.rotate(rad);
@@ -306,31 +364,28 @@
       return c;
     }
 
-    function extractSmartName(text) {
+    function extractName(text) {
       const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
-      const bad = /OSCA|SENIOR|CITIZEN|ID|NO\.|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION|NATIONAL|GOVERNMENT/i;
-
+      const bad = /OSCA|SENIOR|CITIZEN|ID|NO\.|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION|NATIONAL/i;
       const candidates = [];
       for (let line of lines) {
         if (bad.test(line)) continue;
         if (!/[A-Za-zÑñ]{3,}/.test(line)) continue;
         let clean = line.replace(/[^A-Za-zÑñ\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
-        const words = clean.split(" ");
-        if (words.length >= 2 && clean.length >= 8 && clean.length <= 48) {
-          // Prefer lines that look like proper names
-          const score = words.length * 10 + clean.length;
-          candidates.push({ text: clean, score });
+        if (clean.split(" ").length >= 2 && clean.length >= 8 && clean.length <= 48) {
+          candidates.push(clean);
         }
       }
       if (candidates.length === 0) return "";
-      candidates.sort((a,b) => b.score - a.score);
-      return candidates[0].text;
+      candidates.sort((a,b) => b.length - a.length);
+      return candidates[0];
     }
 
     function retake() {
       setStep(2);
       startCam();
-      show("Place the ID card inside the green frame again.", "info");
+      startAutoDetect();
+      show("Point the camera at the ID card again.\nIt will capture automatically.", "info");
     }
 
     function saveFinal() {
@@ -341,7 +396,7 @@
       }
       collected.fullName = name || "Not provided";
 
-      show("Saving to Google Sheets...", "info");
+      show("Saving...", "info");
       const now = new Date();
       fetch(SCRIPT_URL, {
         method: "POST",
@@ -353,10 +408,10 @@
           scanTime: now.toLocaleTimeString(),
           date: now.toLocaleDateString(),
           device: navigator.userAgent.substring(0,50),
-          notes: "Smart OCR"
+          notes: "Smart Auto OCR"
         })
       }).then(() => {
-        show("Saved!\n\nID: " + collected.oscaId + "\nName: " + collected.fullName, "success");
+        show("Saved successfully!\n\nID: " + collected.oscaId + "\nName: " + collected.fullName, "success");
         setTimeout(restart, 4000);
       }).catch(() => show("Save failed. Check internet or Script URL.", "error"));
     }

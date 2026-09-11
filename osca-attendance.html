@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OSCA Attendance - Reliable ID Reading</title>
+  <title>OSCA Attendance - Smart Reader</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
@@ -16,8 +16,8 @@
       padding: 14px;
     }
     .container { max-width: 480px; margin: 0 auto; }
-    h1 { text-align: center; font-size: 1.25rem; margin-bottom: 3px; }
-    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 14px; font-size: 0.85rem; }
+    h1 { text-align: center; font-size: 1.25rem; margin-bottom: 2px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 14px; font-size: 0.84rem; }
 
     .step-indicator { display: flex; gap: 6px; margin-bottom: 14px; }
     .step {
@@ -31,26 +31,23 @@
       width: 100%; border-radius: 12px; overflow: hidden;
       background: #1e293b; min-height: 240px; position: relative;
     }
-    #ocr-area { display: none; text-align: center; }
+    #ocr-area { display: none; }
     #ocr-area video { width: 100%; display: block; }
-    
-    /* Guide overlay */
+
     .guide-frame {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 88%; height: 58%;
+      width: 87%; height: 56%;
       border: 3px solid #22c55e;
       border-radius: 10px;
       pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.38);
     }
-    .guide-text {
-      position: absolute; bottom: 12px; left: 0; right: 0;
-      text-align: center; color: #fff; font-size: 0.85rem;
-      text-shadow: 0 1px 3px black; pointer-events: none;
+    .guide-label {
+      position: absolute; bottom: 10px; left: 0; right: 0;
+      text-align: center; color: white; font-size: 0.84rem;
+      text-shadow: 0 1px 4px black; pointer-events: none;
     }
-
-    #captured-img { max-width: 100%; border-radius: 8px; margin-top: 8px; display: none; }
 
     .result-box {
       margin-top: 12px; padding: 13px; background: #1e293b;
@@ -88,7 +85,7 @@
 <body>
   <div class="container">
     <h1>OSCA Attendance</h1>
-    <p class="subtitle">Reliable Sequential Reading</p>
+    <p class="subtitle">Smart Reader</p>
 
     <div class="step-indicator">
       <div class="step active" id="step1">1. QR</div>
@@ -100,7 +97,7 @@
 
     <div id="ocr-area">
       <div class="guide-frame"></div>
-      <div class="guide-text">Align the ID card inside the green frame</div>
+      <div class="guide-label">Place the ID card inside the green frame</div>
     </div>
 
     <div id="result" class="result-box"></div>
@@ -109,296 +106,268 @@
       <label>OSCA ID (from QR)</label>
       <input type="text" id="edit-id" readonly>
 
-      <label>Full Name (edit if needed)</label>
+      <label>Full Name (you can edit)</label>
       <input type="text" id="edit-name" placeholder="Detected name">
 
-      <label>Detected Text (for checking)</label>
+      <label>Raw detected text</label>
       <textarea id="edit-raw" rows="3" style="font-size:0.8rem; color:#94a3b8;"></textarea>
     </div>
 
-    <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="captureAndOCR()">
-      Capture ID Card
+    <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="smartCapture()">
+      Smart Capture
     </button>
-    <button class="btn btn-warning" id="btn-retake" style="display:none;" onclick="retakePhoto()">
-      Retake Photo
+    <button class="btn btn-warning" id="btn-retake" style="display:none;" onclick="retake()">
+      Retake
     </button>
     <button class="btn btn-success" id="btn-save" style="display:none;" onclick="saveFinal()">
       Save Attendance
     </button>
-    <button class="btn btn-secondary" onclick="restartProcess()">Start Over</button>
+    <button class="btn btn-secondary" onclick="restart()">Start Over</button>
   </div>
 
   <script>
-    // ========== PASTE YOUR REAL SCRIPT URL HERE ==========
+    // ========== PASTE YOUR REAL GOOGLE SCRIPT URL ==========
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlrjeYzjjFQh3b8CFBtYc8mkPEChHley_xO2914EAGdwO0lr5Osa3zjdlfEZsWOhOj/exec";
-    // ====================================================
+    // ======================================================
 
     let html5QrCode = null;
     let videoStream = null;
     let currentStep = 1;
-    let collected = { oscaId: "", fullName: "", rawOCR: "" };
+    let collected = { oscaId: "", fullName: "", raw: "" };
 
-    function setStep(step) {
-      currentStep = step;
-      document.getElementById("step1").className = "step" + (step === 1 ? " active" : step > 1 ? " done" : "");
-      document.getElementById("step2").className = "step" + (step === 2 ? " active" : step > 2 ? " done" : "");
-      document.getElementById("step3").className = "step" + (step === 3 ? " active" : "");
-
-      document.getElementById("reader").style.display = step === 1 ? "block" : "none";
-      document.getElementById("ocr-area").style.display = step === 2 ? "block" : "none";
-      document.getElementById("btn-capture").style.display = step === 2 ? "block" : "none";
-      document.getElementById("btn-retake").style.display = step === 3 ? "block" : "none";
-      document.getElementById("btn-save").style.display = step === 3 ? "block" : "none";
-      document.getElementById("edit-box").style.display = step === 3 ? "block" : "none";
+    function setStep(s) {
+      currentStep = s;
+      document.getElementById("step1").className = "step" + (s===1?" active":s>1?" done":"");
+      document.getElementById("step2").className = "step" + (s===2?" active":s>2?" done":"");
+      document.getElementById("step3").className = "step" + (s===3?" active":"");
+      document.getElementById("reader").style.display = s===1 ? "block" : "none";
+      document.getElementById("ocr-area").style.display = s===2 ? "block" : "none";
+      document.getElementById("btn-capture").style.display = s===2 ? "block" : "none";
+      document.getElementById("btn-retake").style.display = s===3 ? "block" : "none";
+      document.getElementById("btn-save").style.display = s===3 ? "block" : "none";
+      document.getElementById("edit-box").style.display = s===3 ? "block" : "none";
     }
 
-    function restartProcess() {
-      collected = { oscaId: "", fullName: "", rawOCR: "" };
+    function restart() {
+      collected = { oscaId: "", fullName: "", raw: "" };
       document.getElementById("result").classList.remove("show");
       document.getElementById("edit-id").value = "";
       document.getElementById("edit-name").value = "";
       document.getElementById("edit-raw").value = "";
-      stopQRScanner();
-      stopOCRCamera();
+      stopQR(); stopCam();
       setStep(1);
-      startQRScanner();
-      showResult("Step 1: Scan the QR code first", "info");
+      startQR();
+      show("Step 1: Scan the QR code", "info");
     }
 
     // ===== QR =====
-    function onScanSuccess(decodedText) {
+    function onQR(text) {
       if (currentStep !== 1) return;
-      stopQRScanner();
-
-      let oscaId = "";
-      const text = decodedText.trim();
-      if (text.includes("Senior_citizen_id=")) {
-        oscaId = text.split("Senior_citizen_id=")[1].trim();
-      } else if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(text)) {
-        oscaId = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)[0];
-      } else {
-        oscaId = text;
+      stopQR();
+      let id = text.trim();
+      if (id.includes("Senior_citizen_id=")) id = id.split("Senior_citizen_id=")[1].trim();
+      else {
+        const m = id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (m) id = m[0];
       }
-
-      collected.oscaId = oscaId;
-      showResult("QR OK!\nID: " + oscaId + "\n\nNow capture the physical ID card inside the green frame.", "success");
+      collected.oscaId = id;
+      show("QR captured!\n\nNow place the physical ID card inside the green frame and tap Smart Capture.", "success");
       setStep(2);
-      startOCRCamera();
+      startCam();
     }
 
-    function startQRScanner() {
+    function startQR() {
       if (html5QrCode) return;
       html5QrCode = new Html5Qrcode("reader");
-      Html5Qrcode.getCameras().then(cameras => {
-        if (cameras.length) {
-          html5QrCode.start(cameras[cameras.length-1].id, {fps:10, qrbox:{width:250,height:250}}, onScanSuccess, ()=>{});
-        }
+      Html5Qrcode.getCameras().then(c => {
+        if (c.length) html5QrCode.start(c[c.length-1].id, {fps:10, qrbox:{width:250,height:250}}, onQR, ()=>{});
       });
     }
-
-    function stopQRScanner() {
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(()=>{ html5QrCode = null; });
-      }
+    function stopQR() {
+      if (html5QrCode) html5QrCode.stop().then(()=>{html5QrCode.clear();html5QrCode=null;}).catch(()=>{html5QrCode=null;});
     }
 
-    // ===== OCR with auto-rotation =====
-    async function startOCRCamera() {
+    // ===== Camera =====
+    async function startCam() {
       const area = document.getElementById("ocr-area");
       try {
         if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-
         videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: {ideal: 1280}, height: {ideal: 720} }
+          video: { facingMode: "environment", width:{ideal:1280}, height:{ideal:720} }
         });
-
-        // Clear previous video but keep guides
-        const oldVideo = area.querySelector("video");
-        if (oldVideo) oldVideo.remove();
-
-        const video = document.createElement("video");
-        video.srcObject = videoStream;
-        video.setAttribute("playsinline", true);
-        video.autoplay = true;
-        video.style.width = "100%";
-        video.play();
-        area.insertBefore(video, area.firstChild);
-
-      } catch (err) {
-        showResult("Camera error: " + err.message, "error");
+        const old = area.querySelector("video");
+        if (old) old.remove();
+        const v = document.createElement("video");
+        v.srcObject = videoStream;
+        v.setAttribute("playsinline", true);
+        v.autoplay = true;
+        v.style.width = "100%";
+        v.play();
+        area.insertBefore(v, area.firstChild);
+      } catch(e) {
+        show("Camera error: " + e.message, "error");
       }
     }
-
-    function stopOCRCamera() {
-      if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
-        videoStream = null;
-      }
+    function stopCam() {
+      if (videoStream) { videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; }
     }
 
-    // Helper: rotate canvas
-    function rotateCanvas(srcCanvas, degrees) {
-      const rad = degrees * Math.PI / 180;
-      const w = srcCanvas.width;
-      const h = srcCanvas.height;
-      const canvas = document.createElement("canvas");
-      
-      if (degrees % 180 === 0) {
-        canvas.width = w; canvas.height = h;
-      } else {
-        canvas.width = h; canvas.height = w;
-      }
-      
-      const ctx = canvas.getContext("2d");
-      ctx.translate(canvas.width/2, canvas.height/2);
-      ctx.rotate(rad);
-      ctx.drawImage(srcCanvas, -w/2, -h/2);
-      return canvas;
-    }
-
-    async function captureAndOCR() {
+    // ===== SMART CAPTURE =====
+    async function smartCapture() {
       const video = document.querySelector("#ocr-area video");
       if (!video || video.videoWidth === 0) {
-        showResult("Camera not ready. Wait a moment.", "warning");
+        show("Camera not ready. Wait a second.", "warning");
         return;
       }
 
-      showResult("Capturing image...", "info");
+      show("Analyzing card position & reading...", "info");
 
-      // Capture original
-      const orig = document.createElement("canvas");
-      orig.width = video.videoWidth;
-      orig.height = video.videoHeight;
-      orig.getContext("2d").drawImage(video, 0, 0);
+      // Capture
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
 
-      // Enhance contrast
-      const ctx = orig.getContext("2d");
-      const imgData = ctx.getImageData(0, 0, orig.width, orig.height);
-      const d = imgData.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const avg = (d[i] + d[i+1] + d[i+2]) / 3;
-        const v = avg > 130 ? Math.min(255, avg * 1.2) : Math.max(0, avg * 0.8);
-        d[i] = d[i+1] = d[i+2] = v;
+      // Enhance
+      const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+      const d = img.data;
+      for (let i=0; i<d.length; i+=4) {
+        const avg = (d[i]+d[i+1]+d[i+2])/3;
+        const v = avg > 125 ? Math.min(255, avg*1.25) : Math.max(0, avg*0.75);
+        d[i]=d[i+1]=d[i+2]=v;
       }
-      ctx.putImageData(imgData, 0, 0);
+      ctx.putImageData(img,0,0);
 
-      showResult("Testing different orientations...\nThis may take 15–30 seconds", "info");
-
+      // Smart orientation decision: try 0° and 90° first (most common)
       const angles = [0, 90, 180, 270];
-      let bestText = "";
-      let bestScore = 0;
-      let bestName = "";
+      let best = { text: "", score: 0, name: "", angle: 0 };
 
       for (let angle of angles) {
-        const rotated = rotateCanvas(orig, angle);
-        const dataUrl = rotated.toDataURL("image/jpeg", 0.9);
+        const rotated = rotate(canvas, angle);
+        const url = rotated.toDataURL("image/jpeg", 0.88);
 
         try {
-          const result = await Tesseract.recognize(dataUrl, "eng", {
+          const res = await Tesseract.recognize(url, "eng", {
             logger: m => {
               if (m.status === "recognizing text") {
-                document.getElementById("result").innerText = 
-                  `Trying ${angle}° ... ${Math.round(m.progress * 100)}%`;
+                document.getElementById("result").innerText = `Reading (${angle}°) ${Math.round(m.progress*100)}%`;
               }
             }
           });
 
-          const text = result.data.text.replace(/\s+/g, " ").trim();
-          const score = text.length + (result.data.confidence || 0);
+          const text = res.data.text.trim();
+          const conf = res.data.confidence || 0;
+          const score = text.length * 0.6 + conf * 0.4;
 
-          if (score > bestScore && text.length > 20) {
-            bestScore = score;
-            bestText = result.data.text;
-            bestName = extractName(result.data.text);
+          if (score > best.score && text.length > 18) {
+            best = {
+              text: text,
+              score: score,
+              name: extractSmartName(text),
+              angle: angle
+            };
           }
-        } catch (e) {
-          console.log("Angle failed", angle, e);
-        }
+        } catch(e) {}
       }
 
-      collected.rawOCR = bestText;
-
-      if (!bestText || bestText.length < 25) {
-        showResult("Could not read the card clearly.\n\nPlease retake with better lighting and align the card properly inside the green frame.", "error");
+      if (best.score < 25 || best.text.length < 20) {
+        show("Reading quality too low.\n\nPlease retake:\n• Better lighting\n• Fill the green frame\n• Hold steady", "error");
         return;
       }
 
-      collected.fullName = bestName;
+      collected.raw = best.text;
+      collected.fullName = best.name;
 
       document.getElementById("edit-id").value = collected.oscaId;
-      document.getElementById("edit-name").value = bestName || "";
-      document.getElementById("edit-raw").value = bestText;
+      document.getElementById("edit-name").value = best.name || "";
+      document.getElementById("edit-raw").value = best.text;
 
-      if (!bestName || bestName.length < 5) {
-        showResult("Text was read but Name is unclear.\nPlease type the correct name below.", "warning");
+      if (!best.name || best.name.length < 6) {
+        show("Text read successfully but name is unclear.\nPlease type the correct name.", "warning");
       } else {
-        showResult("Best reading found!\nPlease verify the name below.", "success");
+        show(`Good reading (orientation ${best.angle}°)\n\nPlease verify the name.`, "success");
       }
 
       setStep(3);
-      stopOCRCamera();
+      stopCam();
     }
 
-    function extractName(text) {
-      const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 4);
-      const skip = /OSCA|SENIOR|CITIZEN|ID|NO\.|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION/i;
+    function rotate(src, deg) {
+      const rad = deg * Math.PI / 180;
+      const w = src.width, h = src.height;
+      const c = document.createElement("canvas");
+      if (deg % 180 === 0) { c.width = w; c.height = h; }
+      else { c.width = h; c.height = w; }
+      const ctx = c.getContext("2d");
+      ctx.translate(c.width/2, c.height/2);
+      ctx.rotate(rad);
+      ctx.drawImage(src, -w/2, -h/2);
+      return c;
+    }
 
-      let candidates = [];
+    function extractSmartName(text) {
+      const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
+      const bad = /OSCA|SENIOR|CITIZEN|ID|NO\.|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION|NATIONAL|GOVERNMENT/i;
+
+      const candidates = [];
       for (let line of lines) {
-        if (skip.test(line)) continue;
+        if (bad.test(line)) continue;
         if (!/[A-Za-zÑñ]{3,}/.test(line)) continue;
-        let cleaned = line.replace(/[^A-Za-zÑñ\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
-        if (cleaned.split(" ").length >= 2 && cleaned.length >= 8 && cleaned.length <= 45) {
-          candidates.push(cleaned);
+        let clean = line.replace(/[^A-Za-zÑñ\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+        const words = clean.split(" ");
+        if (words.length >= 2 && clean.length >= 8 && clean.length <= 48) {
+          // Prefer lines that look like proper names
+          const score = words.length * 10 + clean.length;
+          candidates.push({ text: clean, score });
         }
       }
       if (candidates.length === 0) return "";
-      candidates.sort((a,b) => b.length - a.length);
-      return candidates[0];
+      candidates.sort((a,b) => b.score - a.score);
+      return candidates[0].text;
     }
 
-    function retakePhoto() {
+    function retake() {
       setStep(2);
-      startOCRCamera();
-      showResult("Align the card inside the green frame and capture again.", "info");
+      startCam();
+      show("Place the ID card inside the green frame again.", "info");
     }
 
     function saveFinal() {
       const name = document.getElementById("edit-name").value.trim();
       if (!collected.oscaId) {
-        showResult("Missing QR ID. Please start over.", "error");
+        show("Missing QR ID. Start over.", "error");
         return;
       }
       collected.fullName = name || "Not provided";
 
-      showResult("Saving...", "info");
-
+      show("Saving to Google Sheets...", "info");
       const now = new Date();
       fetch(SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
-        headers: {"Content-Type": "application/json"},
+        headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
           oscaId: collected.oscaId,
           fullName: collected.fullName,
           scanTime: now.toLocaleTimeString(),
           date: now.toLocaleDateString(),
           device: navigator.userAgent.substring(0,50),
-          notes: "QR+OCR"
+          notes: "Smart OCR"
         })
       }).then(() => {
-        showResult("Saved successfully!\n\nID: " + collected.oscaId + "\nName: " + collected.fullName, "success");
-        setTimeout(restartProcess, 4000);
-      }).catch(() => showResult("Save failed. Check internet / Script URL.", "error"));
+        show("Saved!\n\nID: " + collected.oscaId + "\nName: " + collected.fullName, "success");
+        setTimeout(restart, 4000);
+      }).catch(() => show("Save failed. Check internet or Script URL.", "error"));
     }
 
-    function showResult(msg, type) {
-      const box = document.getElementById("result");
-      box.className = "result-box show " + type;
-      box.innerText = msg;
+    function show(msg, type) {
+      const b = document.getElementById("result");
+      b.className = "result-box show " + type;
+      b.innerText = msg;
     }
 
-    window.addEventListener("load", restartProcess);
+    window.addEventListener("load", restart);
   </script>
 </body>
 </html>

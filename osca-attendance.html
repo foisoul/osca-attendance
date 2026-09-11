@@ -3,79 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OSCA Attendance - Accurate Mode</title>
+  <title>OSCA Attendance - Accurate Reading</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       background: #0f172a;
       color: #f1f5f9;
       min-height: 100vh;
       padding: 16px;
     }
     .container { max-width: 480px; margin: 0 auto; }
-    h1 { text-align: center; font-size: 1.35rem; margin-bottom: 4px; }
-    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 18px; font-size: 0.9rem; }
+    h1 { text-align: center; font-size: 1.3rem; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 16px; font-size: 0.88rem; }
 
     .step-indicator {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 18px;
-      gap: 8px;
+      gap: 6px;
+      margin-bottom: 16px;
     }
     .step {
       flex: 1;
       text-align: center;
-      padding: 10px 6px;
-      border-radius: 10px;
+      padding: 9px 4px;
+      border-radius: 9px;
       background: #1e293b;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       color: #94a3b8;
-      font-weight: 500;
     }
-    .step.active {
-      background: #3b82f6;
-      color: white;
-    }
-    .step.done {
-      background: #166534;
-      color: #bbf7d0;
-    }
+    .step.active { background: #3b82f6; color: white; }
+    .step.done { background: #166534; color: #bbf7d0; }
 
     #reader, #ocr-area {
       width: 100%;
       border-radius: 12px;
       overflow: hidden;
       background: #1e293b;
-      min-height: 260px;
+      min-height: 250px;
     }
-    #ocr-area {
-      display: none;
-      text-align: center;
+    #ocr-area { display: none; text-align: center; padding: 10px; }
+    #ocr-area video { width: 100%; border-radius: 8px; }
+    #captured-img { max-width: 100%; border-radius: 8px; margin-top: 8px; display: none; }
+
+    .guide {
+      background: #1e293b;
+      border-radius: 10px;
       padding: 12px;
-    }
-    #ocr-area video {
-      width: 100%;
-      border-radius: 8px;
-    }
-    #captured-img {
-      max-width: 100%;
-      border-radius: 8px;
-      margin-top: 10px;
-      display: none;
+      margin: 12px 0;
+      font-size: 0.88rem;
+      color: #cbd5e1;
+      line-height: 1.4;
     }
 
     .result-box {
-      margin-top: 16px;
-      padding: 16px;
+      margin-top: 14px;
+      padding: 14px;
       background: #1e293b;
       border-radius: 12px;
       display: none;
       white-space: pre-wrap;
-      font-size: 0.95rem;
-      line-height: 1.45;
+      font-size: 0.92rem;
+      line-height: 1.4;
     }
     .result-box.show { display: block; }
     .success { border-left: 4px solid #22c55e; }
@@ -86,90 +76,111 @@
     .btn {
       display: block;
       width: 100%;
-      padding: 14px;
-      margin-top: 12px;
+      padding: 13px;
+      margin-top: 10px;
       border: none;
       border-radius: 10px;
-      font-size: 1rem;
+      font-size: 0.98rem;
       font-weight: 600;
       cursor: pointer;
     }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-success { background: #16a34a; color: white; }
     .btn-secondary { background: #334155; color: white; }
+    .btn-warning { background: #d97706; color: white; }
     .btn-danger { background: #dc2626; color: white; }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    .info-card {
+    .edit-box {
       background: #1e293b;
       border-radius: 12px;
       padding: 14px;
-      margin-top: 14px;
-      font-size: 0.9rem;
+      margin-top: 12px;
+      display: none;
     }
-    .info-card div { margin-bottom: 6px; }
-    .label { color: #94a3b8; font-size: 0.8rem; }
+    .edit-box label {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .edit-box input {
+      width: 100%;
+      padding: 11px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: white;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>OSCA Attendance</h1>
-    <p class="subtitle">Accurate Sequential Scan</p>
+    <p class="subtitle">Accurate Sequential Reading</p>
 
-    <!-- Step Indicator -->
     <div class="step-indicator">
-      <div class="step active" id="step1">1. Scan QR</div>
-      <div class="step" id="step2">2. Scan ID Card</div>
-      <div class="step" id="step3">3. Save</div>
+      <div class="step active" id="step1">1. QR Code</div>
+      <div class="step" id="step2">2. ID Card</div>
+      <div class="step" id="step3">3. Confirm</div>
     </div>
 
-    <!-- QR Scanner -->
     <div id="reader"></div>
 
-    <!-- OCR Area -->
     <div id="ocr-area">
-      <p id="ocr-status" style="color:#94a3b8; margin-bottom:10px;">Point camera at the physical ID card</p>
+      <div class="guide" id="guide-text">
+        <strong>Tips for better reading:</strong><br>
+        • Good lighting (avoid shadow)<br>
+        • Hold phone steady<br>
+        • Fill the card in the camera<br>
+        • Make sure Name is clear
+      </div>
       <img id="captured-img">
       <canvas id="canvas" style="display:none;"></canvas>
     </div>
 
-    <!-- Result / Status -->
     <div id="result" class="result-box"></div>
 
-    <!-- Current Data Preview -->
-    <div class="info-card" id="preview-card" style="display:none;">
-      <div><span class="label">QR ID:</span> <span id="preview-id">—</span></div>
-      <div><span class="label">Name:</span> <span id="preview-name">—</span></div>
+    <!-- Editable fields after OCR -->
+    <div class="edit-box" id="edit-box">
+      <label>OSCA ID (from QR)</label>
+      <input type="text" id="edit-id" readonly>
+
+      <label>Full Name (from ID Card) – you can edit</label>
+      <input type="text" id="edit-name" placeholder="Name will appear here">
+
+      <label>Raw OCR Text (for checking)</label>
+      <textarea id="edit-raw" rows="3" style="width:100%; padding:10px; border-radius:8px; background:#0f172a; color:#94a3b8; border:1px solid #475569; font-size:0.82rem;"></textarea>
     </div>
 
-    <!-- Buttons -->
     <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="captureAndOCR()">
-      Capture Physical ID Card
+      Capture ID Card
+    </button>
+
+    <button class="btn btn-warning" id="btn-retake" style="display:none;" onclick="retakePhoto()">
+      Retake Photo
     </button>
 
     <button class="btn btn-success" id="btn-save" style="display:none;" onclick="saveFinal()">
-      Save Complete Attendance
+      Save Attendance
     </button>
 
-    <button class="btn btn-secondary" id="btn-restart" onclick="restartProcess()" style="display:none;">
-      Start New Person
-    </button>
-
-    <button class="btn btn-danger" id="btn-reset" onclick="restartProcess()" style="margin-top:8px;">
-      Reset / Cancel
+    <button class="btn btn-secondary" id="btn-restart" onclick="restartProcess()">
+      Start Over
     </button>
   </div>
 
   <script>
     // ========== PASTE YOUR GOOGLE APPS SCRIPT URL HERE ==========
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlrjeYzjjFQh3b8CFBtYc8mkPEChHley_xO2914EAGdwO0lr5Osa3zjdlfEZsWOhOj/exec";
+
     // ============================================================
 
     let html5QrCode = null;
     let videoStream = null;
     let currentStep = 1;
 
-    // Data collected
     let collected = {
       oscaId: "",
       fullName: "",
@@ -177,38 +188,37 @@
       rawOCR: ""
     };
 
-    // ========== STEP CONTROL ==========
     function setStep(step) {
       currentStep = step;
-      document.getElementById("step1").className = "step" + (step === 1 ? " active" : (step > 1 ? " done" : ""));
-      document.getElementById("step2").className = "step" + (step === 2 ? " active" : (step > 2 ? " done" : ""));
+      document.getElementById("step1").className = "step" + (step === 1 ? " active" : step > 1 ? " done" : "");
+      document.getElementById("step2").className = "step" + (step === 2 ? " active" : step > 2 ? " done" : "");
       document.getElementById("step3").className = "step" + (step === 3 ? " active" : "");
 
       document.getElementById("reader").style.display = step === 1 ? "block" : "none";
       document.getElementById("ocr-area").style.display = step === 2 ? "block" : "none";
       document.getElementById("btn-capture").style.display = step === 2 ? "block" : "none";
+      document.getElementById("btn-retake").style.display = step === 3 ? "block" : "none";
       document.getElementById("btn-save").style.display = step === 3 ? "block" : "none";
-      document.getElementById("btn-restart").style.display = step === 3 ? "block" : "none";
-      document.getElementById("preview-card").style.display = step >= 2 ? "block" : "none";
+      document.getElementById("edit-box").style.display = step === 3 ? "block" : "none";
     }
 
     function restartProcess() {
       collected = { oscaId: "", fullName: "", rawQR: "", rawOCR: "" };
-      document.getElementById("preview-id").innerText = "—";
-      document.getElementById("preview-name").innerText = "—";
       document.getElementById("captured-img").style.display = "none";
       document.getElementById("result").classList.remove("show");
+      document.getElementById("edit-id").value = "";
+      document.getElementById("edit-name").value = "";
+      document.getElementById("edit-raw").value = "";
       stopQRScanner();
       stopOCRCamera();
       setStep(1);
       startQRScanner();
-      showResult("Ready. Please scan the QR code first.", "info");
+      showResult("Step 1: Scan the QR code on the ID", "info");
     }
 
-    // ========== QR SCANNING (STEP 1) ==========
+    // ===== STEP 1: QR =====
     function onScanSuccess(decodedText) {
       if (currentStep !== 1) return;
-
       stopQRScanner();
 
       let oscaId = "";
@@ -224,9 +234,8 @@
 
       collected.oscaId = oscaId;
       collected.rawQR = text;
-      document.getElementById("preview-id").innerText = oscaId;
 
-      showResult("QR successfully scanned!\n\nID: " + oscaId + "\n\nNow please scan the Physical ID card.", "success");
+      showResult("QR captured!\n\nID: " + oscaId + "\n\nNow go to Step 2: Capture the physical ID card.", "success");
       setStep(2);
       startOCRCamera();
     }
@@ -234,55 +243,42 @@
     function startQRScanner() {
       if (html5QrCode) return;
       html5QrCode = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
       Html5Qrcode.getCameras().then(cameras => {
-        if (cameras && cameras.length) {
-          const cameraId = cameras[cameras.length - 1].id;
-          html5QrCode.start(cameraId, config, onScanSuccess, () => {});
-        } else {
-          showResult("No camera found", "error");
+        if (cameras.length) {
+          html5QrCode.start(cameras[cameras.length-1].id, { fps: 10, qrbox: {width:250, height:250} }, onScanSuccess, ()=>{});
         }
       }).catch(err => showResult("Camera error: " + err, "error"));
     }
 
     function stopQRScanner() {
       if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-          html5QrCode = null;
-        }).catch(() => { html5QrCode = null; });
+        html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(() => { html5QrCode = null; });
       }
     }
 
-    // ========== PHYSICAL ID OCR (STEP 2) ==========
+    // ===== STEP 2: OCR =====
     async function startOCRCamera() {
       const area = document.getElementById("ocr-area");
       try {
-        if (videoStream) {
-          videoStream.getTracks().forEach(t => t.stop());
-        }
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
 
         videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          video: { facingMode: "environment", width: {ideal: 1280}, height: {ideal: 720} }
         });
 
+        // Keep the guide
+        const guide = document.getElementById("guide-text");
         area.innerHTML = "";
+        if (guide) area.appendChild(guide);
+
         const video = document.createElement("video");
         video.srcObject = videoStream;
         video.setAttribute("playsinline", true);
-        video.setAttribute("autoplay", true);
+        video.autoplay = true;
         video.style.width = "100%";
         video.style.borderRadius = "8px";
         video.play();
         area.appendChild(video);
-
-        const status = document.createElement("p");
-        status.id = "ocr-status";
-        status.style.color = "#94a3b8";
-        status.style.margin = "10px 0";
-        status.innerText = "Point at the ID card → then tap Capture";
-        area.appendChild(status);
 
         const img = document.createElement("img");
         img.id = "captured-img";
@@ -297,7 +293,7 @@
         area.appendChild(canvas);
 
       } catch (err) {
-        showResult("Cannot access camera: " + err.message, "error");
+        showResult("Camera error: " + err.message, "error");
       }
     }
 
@@ -311,11 +307,11 @@
     async function captureAndOCR() {
       const video = document.querySelector("#ocr-area video");
       if (!video || video.videoWidth === 0) {
-        showResult("Camera not ready. Wait a moment and try again.", "error");
+        showResult("Camera not ready yet. Wait 1 second and try again.", "warning");
         return;
       }
 
-      showResult("Capturing photo...", "info");
+      showResult("Capturing and enhancing image...", "info");
 
       try {
         const canvas = document.getElementById("canvas");
@@ -324,57 +320,101 @@
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0);
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.85);
+        // Simple enhancement: increase contrast
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          // Convert to grayscale + slight contrast boost
+          const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+          const v = avg > 140 ? Math.min(255, avg * 1.15) : Math.max(0, avg * 0.85);
+          data[i] = data[i+1] = data[i+2] = v;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.9);
         const img = document.getElementById("captured-img");
         img.src = imgData;
         img.style.display = "block";
 
-        showResult("Reading the ID card...\nPlease wait 5–15 seconds", "info");
+        showResult("Reading text from ID card...\nThis may take 8–20 seconds", "info");
 
         const result = await Tesseract.recognize(imgData, "eng", {
           logger: m => {
             if (m.status === "recognizing text") {
-              document.getElementById("result").innerText = `Reading ID card... ${Math.round(m.progress * 100)}%`;
+              document.getElementById("result").innerText = `Reading... ${Math.round(m.progress * 100)}%`;
             }
           }
         });
 
-        const text = result.data.text;
+        const text = result.data.text.replace(/\n+/g, "\n").trim();
         collected.rawOCR = text;
-        console.log("OCR:", text);
 
-        // Extract Name (improved heuristic)
-        let fullName = "";
-        const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 4);
+        // Better name extraction
+        let fullName = extractName(text);
 
-        for (let line of lines.slice(0, 15)) {
-          // Skip common labels
-          if (/OSCA|SENIOR|CITIZEN|ID|NO\.|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE/i.test(line)) continue;
-          // Look for name-like text
-          if (/[A-Za-z]{3,}/.test(line) && line.length > 6 && line.length < 45) {
-            fullName = line.replace(/[^A-Za-zÑñ\s\.\-]/g, "").trim();
-            if (fullName.split(" ").length >= 2) break; // prefer full names
-          }
+        collected.fullName = fullName;
+
+        // Show editable fields
+        document.getElementById("edit-id").value = collected.oscaId;
+        document.getElementById("edit-name").value = fullName || "";
+        document.getElementById("edit-raw").value = text;
+
+        if (!fullName || fullName.length < 5) {
+          showResult("Name not clearly detected.\nPlease check the text below and type the correct name.", "warning");
+        } else {
+          showResult("Reading completed!\n\nPlease verify the Name below.\nYou can edit it if needed.", "success");
         }
 
-        collected.fullName = fullName || "Not clearly read";
-        document.getElementById("preview-name").innerText = collected.fullName;
-
-        showResult(`Physical ID read!\n\nName: ${collected.fullName}\n\nYou can now save the complete record.`, "success");
         setStep(3);
         stopOCRCamera();
 
       } catch (err) {
-        showResult("OCR Error: " + err.message, "error");
+        showResult("Error during reading: " + err.message, "error");
       }
     }
 
-    // ========== SAVE (STEP 3) ==========
+    function extractName(text) {
+      const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 3);
+      const skipWords = /OSCA|SENIOR|CITIZEN|ID|NO\.|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY/i;
+
+      let candidates = [];
+      for (let line of lines) {
+        if (skipWords.test(line)) continue;
+        if (!/[A-Za-zÑñ]{3,}/.test(line)) continue;
+        if (line.length < 6 || line.length > 50) continue;
+
+        // Clean the line
+        let cleaned = line.replace(/[^A-Za-zÑñ\s\.\-']/g, " ").replace(/\s+/g, " ").trim();
+        if (cleaned.split(" ").length >= 2) {
+          candidates.push(cleaned);
+        }
+      }
+
+      // Prefer the longest candidate that looks like a name
+      if (candidates.length === 0) return "";
+      candidates.sort((a, b) => b.length - a.length);
+      return candidates[0];
+    }
+
+    function retakePhoto() {
+      document.getElementById("captured-img").style.display = "none";
+      document.getElementById("edit-box").style.display = "none";
+      setStep(2);
+      startOCRCamera();
+      showResult("Ready to capture again. Follow the tips for better reading.", "info");
+    }
+
+    // ===== STEP 3: SAVE =====
     function saveFinal() {
-      if (!collected.oscaId) {
-        showResult("No QR ID found. Please restart.", "error");
+      const name = document.getElementById("edit-name").value.trim();
+      const id = document.getElementById("edit-id").value.trim();
+
+      if (!id) {
+        showResult("OSCA ID is missing. Please start over.", "error");
         return;
       }
+
+      collected.fullName = name || "Not provided";
 
       showResult("Saving to Google Sheets...", "info");
 
@@ -384,8 +424,8 @@
         fullName: collected.fullName,
         scanTime: now.toLocaleTimeString(),
         date: now.toLocaleDateString(),
-        device: navigator.userAgent.substring(0, 50),
-        notes: "QR+OCR | " + (collected.rawOCR ? collected.rawOCR.substring(0, 80) : "")
+        device: navigator.userAgent.substring(0, 55),
+        notes: "QR+OCR"
       };
 
       fetch(SCRIPT_URL, {
@@ -395,9 +435,9 @@
         body: JSON.stringify(payload)
       }).then(() => {
         showResult("Successfully saved!\n\nID: " + collected.oscaId + "\nName: " + collected.fullName, "success");
-        setTimeout(() => restartProcess(), 4000);
+        setTimeout(() => restartProcess(), 4500);
       }).catch(() => {
-        showResult("Failed to save. Check internet / Apps Script URL.", "error");
+        showResult("Failed to save. Check your internet and Apps Script URL.", "error");
       });
     }
 
@@ -407,10 +447,7 @@
       box.innerText = msg;
     }
 
-    // Start
-    window.addEventListener("load", () => {
-      restartProcess();
-    });
+    window.addEventListener("load", restartProcess);
   </script>
 </body>
 </html>

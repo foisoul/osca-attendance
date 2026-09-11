@@ -2,93 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>OSCA QR Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OSCA Attendance Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: #0f172a;
       color: #f1f5f9;
       min-height: 100vh;
       padding: 16px;
     }
     .container { max-width: 480px; margin: 0 auto; }
-    h1 { text-align: center; margin-bottom: 8px; font-size: 1.4rem; }
-    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
-    #reader {
+    h1 { text-align: center; font-size: 1.4rem; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 16px; font-size: 0.9rem; }
+    
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: #1e293b;
+      color: #94a3b8;
+    }
+    .mode-btn.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    #reader, #ocr-preview {
       width: 100%;
       border-radius: 12px;
       overflow: hidden;
       background: #1e293b;
+      min-height: 280px;
     }
+    #ocr-preview {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    #ocr-preview img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
     .result-box {
-      margin-top: 20px;
+      margin-top: 16px;
       padding: 16px;
       background: #1e293b;
       border-radius: 12px;
       display: none;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
     }
     .result-box.show { display: block; }
     .success { border-left: 4px solid #22c55e; }
     .error { border-left: 4px solid #ef4444; }
     .info { border-left: 4px solid #3b82f6; }
+
     .btn {
       display: block;
       width: 100%;
       padding: 14px;
       margin-top: 12px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
     }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-secondary { background: #334155; color: white; }
+    .btn-success { background: #22c55e; color: white; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .manual-input {
-      margin-top: 16px;
-      display: none;
+
+    .manual-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #334155;
     }
+    label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 10px; }
     input, textarea {
       width: 100%;
       padding: 12px;
-      margin-top: 8px;
+      margin-top: 6px;
       border-radius: 8px;
       border: 1px solid #334155;
       background: #0f172a;
       color: white;
       font-size: 1rem;
     }
-    label { font-size: 0.85rem; color: #94a3b8; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>OSCA Attendance</h1>
-    <p class="subtitle">Scan Senior Citizen QR ID</p>
+    <p class="subtitle">Scan QR or Physical ID Card</p>
+
+    <div class="mode-buttons">
+      <button class="mode-btn active" id="btn-qr" onclick="switchMode('qr')">QR Code</button>
+      <button class="mode-btn" id="btn-ocr" onclick="switchMode('ocr')">Physical ID</button>
+    </div>
 
     <div id="reader"></div>
+    <div id="ocr-preview">
+      <p id="ocr-status">Point camera at the ID card then tap Capture</p>
+      <img id="captured-img" style="display:none;">
+      <canvas id="canvas" style="display:none;"></canvas>
+    </div>
 
     <div id="result" class="result-box"></div>
 
-    <button class="btn btn-secondary" onclick="toggleManual()" style="margin-top:20px">
-      Manual Entry (if QR fails)
+    <button class="btn btn-primary" id="capture-btn" style="display:none;" onclick="captureAndOCR()">
+      Capture & Read ID Card
     </button>
 
-    <div id="manual" class="manual-input">
+    <button class="btn btn-secondary" onclick="toggleManual()">Manual Entry</button>
+
+    <div id="manual" class="manual-section" style="display:none;">
       <label>OSCA ID / Number</label>
-      <input type="text" id="manualId" placeholder="Enter OSCA ID">
+      <input type="text" id="manualId" placeholder="Enter ID">
       
-      <label>Full Name</label>
+      <label>Full Name (optional)</label>
       <input type="text" id="manualName" placeholder="Enter Full Name">
       
-      <label>Notes (optional)</label>
+      <label>Notes</label>
       <textarea id="manualNotes" rows="2" placeholder="Any notes..."></textarea>
       
-      <button class="btn btn-primary" onclick="submitManual()">Save Attendance</button>
+      <button class="btn btn-success" onclick="submitManual()">Save Attendance</button>
     </div>
   </div>
 
@@ -97,83 +150,194 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfw1-WPYoWxFGE6U3MXKhxVTP94-ibxdWLT26xxyYPKxMrQgDTgmR3Vcut0d11l-3x/exec";
     // ============================================================
 
-    let html5QrCode;
+    let html5QrCode = null;
+    let currentMode = "qr";
     let isScanning = true;
+    let videoStream = null;
 
-    function onScanSuccess(decodedText, decodedResult) {
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById("btn-qr").classList.toggle("active", mode === "qr");
+      document.getElementById("btn-ocr").classList.toggle("active", mode === "ocr");
+      document.getElementById("reader").style.display = mode === "qr" ? "block" : "none";
+      document.getElementById("ocr-preview").style.display = mode === "ocr" ? "block" : "none";
+      document.getElementById("capture-btn").style.display = mode === "ocr" ? "block" : "none";
+      document.getElementById("result").classList.remove("show");
+
+      if (mode === "qr") {
+        stopOCRCamera();
+        startQRScanner();
+      } else {
+        stopQRScanner();
+        startOCRCamera();
+      }
+    }
+
+    // ========== QR MODE ==========
+    function onScanSuccess(decodedText) {
       if (!isScanning) return;
       isScanning = false;
-
-      // Stop camera temporarily
       html5QrCode.pause(true);
 
-      // Try to parse the QR content
       let oscaId = "";
-      let fullName = "";
+      const text = decodedText.trim();
 
-      try {
-        // Case 1: QR contains JSON
-        const parsed = JSON.parse(decodedText);
-        oscaId = parsed.id || parsed.oscaId || parsed.OSCA_ID || "";
-        fullName = parsed.name || parsed.fullName || parsed.FullName || "";
-      } catch (e) {
-        // Case 2: Plain text (most common)
-        // Example formats: "1234567890|JUAN DELA CRUZ" or just "1234567890"
-        const parts = decodedText.split(/[|\n,;]/);
-        if (parts.length >= 2) {
-          oscaId = parts[0].trim();
-          fullName = parts[1].trim();
-        } else {
-          oscaId = decodedText.trim();
-          fullName = ""; // will ask later if empty
-        }
+      if (text.includes("Senior_citizen_id=")) {
+        oscaId = text.split("Senior_citizen_id=")[1].trim();
+      } else if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(text)) {
+        oscaId = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)[0];
+      } else {
+        oscaId = text;
       }
 
-      showResult("Scanned successfully!", "info");
-      sendToSheet(oscaId, fullName, decodedText);
+      showResult("QR Scanned!\nID: " + oscaId, "info");
+      sendToSheet(oscaId, "", text);
     }
 
-    function onScanFailure(error) {
-      // ignore continuous scan errors
+    function startQRScanner() {
+      if (html5QrCode) return;
+      html5QrCode = new Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length) {
+          const cameraId = cameras[cameras.length - 1].id;
+          html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+        }
+      }).catch(err => showResult("Camera error: " + err, "error"));
     }
 
-    function sendToSheet(oscaId, fullName, rawData = "") {
+    function stopQRScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          html5QrCode = null;
+        }).catch(() => {});
+      }
+    }
+
+    // ========== OCR MODE (Physical ID) ==========
+    async function startOCRCamera() {
+      const preview = document.getElementById("ocr-preview");
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        const video = document.createElement("video");
+        video.srcObject = videoStream;
+        video.setAttribute("playsinline", true);
+        video.style.width = "100%";
+        video.style.borderRadius = "8px";
+        video.play();
+        preview.innerHTML = "";
+        preview.appendChild(video);
+        document.getElementById("ocr-status")?.remove();
+      } catch (err) {
+        showResult("Cannot access camera: " + err.message, "error");
+      }
+    }
+
+    function stopOCRCamera() {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+    }
+
+    async function captureAndOCR() {
+      const video = document.querySelector("#ocr-preview video");
+      if (!video) return;
+
+      const canvas = document.getElementById("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.8);
+      const img = document.getElementById("captured-img");
+      img.src = imgData;
+      img.style.display = "block";
+
+      showResult("Reading ID card... Please wait", "info");
+
+      try {
+        const result = await Tesseract.recognize(imgData, "eng", {
+          logger: m => {
+            if (m.status === "recognizing text") {
+              document.getElementById("result").innerText = 
+                "Reading... " + Math.round(m.progress * 100) + "%";
+            }
+          }
+        });
+
+        const text = result.data.text;
+        console.log("OCR Result:", text);
+
+        // Try to extract useful info
+        let oscaId = "";
+        let fullName = "";
+
+        // Look for UUID style ID
+        const uuidMatch = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (uuidMatch) oscaId = uuidMatch[0];
+
+        // Look for common name patterns (simple heuristic)
+        const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 3);
+        // Usually the name is one of the longer lines near the top
+        for (let line of lines.slice(0, 8)) {
+          if (line.length > 8 && /[A-Za-z]{3,}/.test(line) && !/ID|OSCA|SENIOR|CITIZEN|BIRTH|ADDRESS|PHILIPPINES/i.test(line)) {
+            fullName = line;
+            break;
+          }
+        }
+
+        if (!oscaId && !fullName) {
+          showResult("Could not read clearly.\nPlease try again with better lighting.\n\nRaw text:\n" + text.substring(0, 200), "error");
+          return;
+        }
+
+        showResult(`ID Card Read!\n\nID: ${oscaId || "—"}\nName: ${fullName || "—"}`, "success");
+        sendToSheet(oscaId || "UNKNOWN", fullName || "", text.substring(0, 150));
+
+      } catch (err) {
+        showResult("OCR failed: " + err.message, "error");
+      }
+    }
+
+    // ========== COMMON ==========
+    function sendToSheet(oscaId, fullName, raw = "") {
       const now = new Date();
       const payload = {
         oscaId: oscaId,
-        fullName: fullName || "Unknown",
+        fullName: fullName || "",
         scanTime: now.toLocaleTimeString(),
         date: now.toLocaleDateString(),
-        device: navigator.userAgent.substring(0, 80),
-        notes: rawData ? "Raw QR: " + rawData.substring(0, 100) : ""
+        device: navigator.userAgent.substring(0, 60),
+        notes: raw ? "Raw: " + raw.substring(0, 100) : ""
       };
 
       fetch(SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors", // important for Google Apps Script
+        mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      })
-      .then(() => {
-        showResult(`Saved!\n\nOSCA ID: ${oscaId}\nName: ${fullName || "—"}`, "success");
-        // Resume scanning after 2.5 seconds
+      }).then(() => {
         setTimeout(() => {
           isScanning = true;
-          html5QrCode.resume();
+          if (currentMode === "qr" && html5QrCode) html5QrCode.resume();
           document.getElementById("result").classList.remove("show");
-        }, 2500);
-      })
-      .catch(err => {
-        showResult("Failed to save. Check internet connection.", "error");
+        }, 3000);
+      }).catch(() => {
+        showResult("Failed to save. Check internet.", "error");
         isScanning = true;
-        html5QrCode.resume();
       });
     }
 
-    function showResult(message, type) {
+    function showResult(msg, type) {
       const box = document.getElementById("result");
       box.className = "result-box show " + type;
-      box.innerText = message;
+      box.innerText = msg;
     }
 
     function toggleManual() {
@@ -185,35 +349,15 @@
       const id = document.getElementById("manualId").value.trim();
       const name = document.getElementById("manualName").value.trim();
       const notes = document.getElementById("manualNotes").value.trim();
-
-      if (!id) {
-        alert("Please enter OSCA ID");
-        return;
-      }
-
+      if (!id) return alert("Please enter OSCA ID");
       sendToSheet(id, name, notes);
       document.getElementById("manualId").value = "";
       document.getElementById("manualName").value = "";
       document.getElementById("manualNotes").value = "";
     }
 
-    // Start the scanner
-    window.addEventListener("load", () => {
-      html5QrCode = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-      Html5Qrcode.getCameras().then(cameras => {
-        if (cameras && cameras.length) {
-          // Prefer back camera
-          let cameraId = cameras[cameras.length - 1].id;
-          html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
-        } else {
-          showResult("No camera found", "error");
-        }
-      }).catch(err => {
-        showResult("Camera error: " + err, "error");
-      });
-    });
+    // Start with QR mode
+    window.addEventListener("load", () => startQRScanner());
   </script>
 </body>
 </html>

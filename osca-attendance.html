@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>OSCA QR Attendance</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container { max-width: 480px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 8px; font-size: 1.4rem; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+    #reader {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #1e293b;
+    }
+    .result-box {
+      margin-top: 20px;
+      padding: 16px;
+      background: #1e293b;
+      border-radius: 12px;
+      display: none;
+    }
+    .result-box.show { display: block; }
+    .success { border-left: 4px solid #22c55e; }
+    .error { border-left: 4px solid #ef4444; }
+    .info { border-left: 4px solid #3b82f6; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-secondary { background: #334155; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .manual-input {
+      margin-top: 16px;
+      display: none;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: white;
+      font-size: 1rem;
+    }
+    label { font-size: 0.85rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OSCA Attendance</h1>
+    <p class="subtitle">Scan Senior Citizen QR ID</p>
+
+    <div id="reader"></div>
+
+    <div id="result" class="result-box"></div>
+
+    <button class="btn btn-secondary" onclick="toggleManual()" style="margin-top:20px">
+      Manual Entry (if QR fails)
+    </button>
+
+    <div id="manual" class="manual-input">
+      <label>OSCA ID / Number</label>
+      <input type="text" id="manualId" placeholder="Enter OSCA ID">
+      
+      <label>Full Name</label>
+      <input type="text" id="manualName" placeholder="Enter Full Name">
+      
+      <label>Notes (optional)</label>
+      <textarea id="manualNotes" rows="2" placeholder="Any notes..."></textarea>
+      
+      <button class="btn btn-primary" onclick="submitManual()">Save Attendance</button>
+    </div>
+  </div>
+
+  <script>
+    // ========== PASTE YOUR GOOGLE APPS SCRIPT URL HERE ==========
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfw1-WPYoWxFGE6U3MXKhxVTP94-ibxdWLT26xxyYPKxMrQgDTgmR3Vcut0d11l-3x/exec";
+    // ============================================================
+
+    let html5QrCode;
+    let isScanning = true;
+
+    function onScanSuccess(decodedText, decodedResult) {
+      if (!isScanning) return;
+      isScanning = false;
+
+      // Stop camera temporarily
+      html5QrCode.pause(true);
+
+      // Try to parse the QR content
+      let oscaId = "";
+      let fullName = "";
+
+      try {
+        // Case 1: QR contains JSON
+        const parsed = JSON.parse(decodedText);
+        oscaId = parsed.id || parsed.oscaId || parsed.OSCA_ID || "";
+        fullName = parsed.name || parsed.fullName || parsed.FullName || "";
+      } catch (e) {
+        // Case 2: Plain text (most common)
+        // Example formats: "1234567890|JUAN DELA CRUZ" or just "1234567890"
+        const parts = decodedText.split(/[|\n,;]/);
+        if (parts.length >= 2) {
+          oscaId = parts[0].trim();
+          fullName = parts[1].trim();
+        } else {
+          oscaId = decodedText.trim();
+          fullName = ""; // will ask later if empty
+        }
+      }
+
+      showResult("Scanned successfully!", "info");
+      sendToSheet(oscaId, fullName, decodedText);
+    }
+
+    function onScanFailure(error) {
+      // ignore continuous scan errors
+    }
+
+    function sendToSheet(oscaId, fullName, rawData = "") {
+      const now = new Date();
+      const payload = {
+        oscaId: oscaId,
+        fullName: fullName || "Unknown",
+        scanTime: now.toLocaleTimeString(),
+        date: now.toLocaleDateString(),
+        device: navigator.userAgent.substring(0, 80),
+        notes: rawData ? "Raw QR: " + rawData.substring(0, 100) : ""
+      };
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors", // important for Google Apps Script
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(() => {
+        showResult(`Saved!\n\nOSCA ID: ${oscaId}\nName: ${fullName || "—"}`, "success");
+        // Resume scanning after 2.5 seconds
+        setTimeout(() => {
+          isScanning = true;
+          html5QrCode.resume();
+          document.getElementById("result").classList.remove("show");
+        }, 2500);
+      })
+      .catch(err => {
+        showResult("Failed to save. Check internet connection.", "error");
+        isScanning = true;
+        html5QrCode.resume();
+      });
+    }
+
+    function showResult(message, type) {
+      const box = document.getElementById("result");
+      box.className = "result-box show " + type;
+      box.innerText = message;
+    }
+
+    function toggleManual() {
+      const el = document.getElementById("manual");
+      el.style.display = el.style.display === "block" ? "none" : "block";
+    }
+
+    function submitManual() {
+      const id = document.getElementById("manualId").value.trim();
+      const name = document.getElementById("manualName").value.trim();
+      const notes = document.getElementById("manualNotes").value.trim();
+
+      if (!id) {
+        alert("Please enter OSCA ID");
+        return;
+      }
+
+      sendToSheet(id, name, notes);
+      document.getElementById("manualId").value = "";
+      document.getElementById("manualName").value = "";
+      document.getElementById("manualNotes").value = "";
+    }
+
+    // Start the scanner
+    window.addEventListener("load", () => {
+      html5QrCode = new Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length) {
+          // Prefer back camera
+          let cameraId = cameras[cameras.length - 1].id;
+          html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
+        } else {
+          showResult("No camera found", "error");
+        }
+      }).catch(err => {
+        showResult("Camera error: " + err, "error");
+      });
+    });
+  </script>
+</body>
+</html>

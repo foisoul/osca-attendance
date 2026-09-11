@@ -50,12 +50,17 @@
     #ocr-preview {
       display: none;
       text-align: center;
-      padding: 20px;
+      padding: 12px;
     }
-    #ocr-preview img {
+    #ocr-preview video {
+      width: 100%;
+      border-radius: 8px;
+    }
+    #captured-img {
       max-width: 100%;
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin-top: 10px;
+      display: none;
     }
 
     .result-box {
@@ -66,6 +71,7 @@
       display: none;
       white-space: pre-wrap;
       font-size: 0.95rem;
+      line-height: 1.4;
     }
     .result-box.show { display: block; }
     .success { border-left: 4px solid #22c55e; }
@@ -117,9 +123,10 @@
     </div>
 
     <div id="reader"></div>
+
     <div id="ocr-preview">
-      <p id="ocr-status">Point camera at the ID card then tap Capture</p>
-      <img id="captured-img" style="display:none;">
+      <p id="ocr-status" style="color:#94a3b8; margin-bottom:10px;">Camera starting...</p>
+      <img id="captured-img">
       <canvas id="canvas" style="display:none;"></canvas>
     </div>
 
@@ -147,7 +154,7 @@
 
   <script>
     // ========== PASTE YOUR GOOGLE APPS SCRIPT URL HERE ==========
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfw1-WPYoWxFGE6U3MXKhxVTP94-ibxdWLT26xxyYPKxMrQgDTgmR3Vcut0d11l-3x/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID_HERE/exec";
     // ============================================================
 
     let html5QrCode = null;
@@ -163,6 +170,7 @@
       document.getElementById("ocr-preview").style.display = mode === "ocr" ? "block" : "none";
       document.getElementById("capture-btn").style.display = mode === "ocr" ? "block" : "none";
       document.getElementById("result").classList.remove("show");
+      document.getElementById("captured-img").style.display = "none";
 
       if (mode === "qr") {
         stopOCRCamera();
@@ -177,7 +185,7 @@
     function onScanSuccess(decodedText) {
       if (!isScanning) return;
       isScanning = false;
-      html5QrCode.pause(true);
+      if (html5QrCode) html5QrCode.pause(true);
 
       let oscaId = "";
       const text = decodedText.trim();
@@ -190,7 +198,7 @@
         oscaId = text;
       }
 
-      showResult("QR Scanned!\nID: " + oscaId, "info");
+      showResult("QR Scanned!\n\nID: " + oscaId, "info");
       sendToSheet(oscaId, "", text);
     }
 
@@ -203,6 +211,8 @@
         if (cameras && cameras.length) {
           const cameraId = cameras[cameras.length - 1].id;
           html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+        } else {
+          showResult("No camera found", "error");
         }
       }).catch(err => showResult("Camera error: " + err, "error"));
     }
@@ -212,28 +222,66 @@
         html5QrCode.stop().then(() => {
           html5QrCode.clear();
           html5QrCode = null;
-        }).catch(() => {});
+        }).catch(() => {
+          html5QrCode = null;
+        });
       }
     }
 
-    // ========== OCR MODE (Physical ID) ==========
+    // ========== OCR MODE ==========
     async function startOCRCamera() {
       const preview = document.getElementById("ocr-preview");
+      const status = document.getElementById("ocr-status");
+
       try {
+        // Stop any previous stream
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+        }
+
         videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
+          video: { 
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         });
+
+        // Clear previous content
+        preview.innerHTML = "";
+        
         const video = document.createElement("video");
         video.srcObject = videoStream;
         video.setAttribute("playsinline", true);
+        video.setAttribute("autoplay", true);
         video.style.width = "100%";
         video.style.borderRadius = "8px";
         video.play();
-        preview.innerHTML = "";
+
         preview.appendChild(video);
-        document.getElementById("ocr-status")?.remove();
+        
+        // Re-add status and image elements
+        const statusP = document.createElement("p");
+        statusP.id = "ocr-status";
+        statusP.style.color = "#94a3b8";
+        statusP.style.margin = "10px 0";
+        statusP.innerText = "Point at the ID card, then tap Capture";
+        preview.appendChild(statusP);
+
+        const img = document.createElement("img");
+        img.id = "captured-img";
+        img.style.maxWidth = "100%";
+        img.style.borderRadius = "8px";
+        img.style.display = "none";
+        preview.appendChild(img);
+
+        const canvas = document.createElement("canvas");
+        canvas.id = "canvas";
+        canvas.style.display = "none";
+        preview.appendChild(canvas);
+
       } catch (err) {
-        showResult("Cannot access camera: " + err.message, "error");
+        showResult("Cannot access camera.\n\nPlease allow camera permission and try again.\n\nError: " + err.message, "error");
       }
     }
 
@@ -246,66 +294,90 @@
 
     async function captureAndOCR() {
       const video = document.querySelector("#ocr-preview video");
-      if (!video) return;
+      
+      if (!video) {
+        showResult("Camera not ready. Please switch to Physical ID mode again.", "error");
+        return;
+      }
 
-      const canvas = document.getElementById("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0);
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        showResult("Camera is still loading.\nWait 1–2 seconds and try again.", "error");
+        return;
+      }
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.8);
-      const img = document.getElementById("captured-img");
-      img.src = imgData;
-      img.style.display = "block";
-
-      showResult("Reading ID card... Please wait", "info");
+      showResult("Capturing photo...", "info");
 
       try {
+        const canvas = document.getElementById("canvas") || document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.85);
+
+        // Show the captured image
+        let img = document.getElementById("captured-img");
+        if (img) {
+          img.src = imgData;
+          img.style.display = "block";
+        }
+
+        showResult("Reading the ID card...\nPlease wait (5–15 seconds)", "info");
+
         const result = await Tesseract.recognize(imgData, "eng", {
-          logger: m => {
+          logger: (m) => {
             if (m.status === "recognizing text") {
-              document.getElementById("result").innerText = 
-                "Reading... " + Math.round(m.progress * 100) + "%";
+              const percent = Math.round(m.progress * 100);
+              const box = document.getElementById("result");
+              if (box) box.innerText = `Reading ID card... ${percent}%`;
             }
           }
         });
 
         const text = result.data.text;
-        console.log("OCR Result:", text);
+        console.log("OCR Text:", text);
 
-        // Try to extract useful info
         let oscaId = "";
         let fullName = "";
 
-        // Look for UUID style ID
+        // Extract UUID
         const uuidMatch = text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        if (uuidMatch) oscaId = uuidMatch[0];
+        if (uuidMatch) {
+          oscaId = uuidMatch[0];
+        }
 
-        // Look for common name patterns (simple heuristic)
-        const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 3);
-        // Usually the name is one of the longer lines near the top
-        for (let line of lines.slice(0, 8)) {
-          if (line.length > 8 && /[A-Za-z]{3,}/.test(line) && !/ID|OSCA|SENIOR|CITIZEN|BIRTH|ADDRESS|PHILIPPINES/i.test(line)) {
+        // Try to find name
+        const lines = text.split("\n")
+          .map(l => l.trim())
+          .filter(l => l.length > 5);
+
+        for (let line of lines.slice(0, 12)) {
+          if (
+            /[A-Za-z]{3,}/.test(line) &&
+            !/OSCA|SENIOR|CITIZEN|ID|NO\.|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX/i.test(line)
+          ) {
             fullName = line;
             break;
           }
         }
 
         if (!oscaId && !fullName) {
-          showResult("Could not read clearly.\nPlease try again with better lighting.\n\nRaw text:\n" + text.substring(0, 200), "error");
+          showResult("Could not read clearly.\n\nTips:\n• Use good lighting\n• Hold phone steady\n• Make sure Name & Number are visible\n\nRaw text:\n" + text.substring(0, 220), "error");
           return;
         }
 
-        showResult(`ID Card Read!\n\nID: ${oscaId || "—"}\nName: ${fullName || "—"}`, "success");
-        sendToSheet(oscaId || "UNKNOWN", fullName || "", text.substring(0, 150));
+        showResult(`Successfully Read!\n\nID: ${oscaId || "Not found"}\nName: ${fullName || "Not found"}`, "success");
+        sendToSheet(oscaId || "UNKNOWN", fullName || "", text.substring(0, 120));
 
       } catch (err) {
-        showResult("OCR failed: " + err.message, "error");
+        console.error(err);
+        showResult("Error while reading:\n" + err.message, "error");
       }
     }
 
-    // ========== COMMON ==========
+    // ========== COMMON FUNCTIONS ==========
     function sendToSheet(oscaId, fullName, raw = "") {
       const now = new Date();
       const payload = {
@@ -325,11 +397,13 @@
       }).then(() => {
         setTimeout(() => {
           isScanning = true;
-          if (currentMode === "qr" && html5QrCode) html5QrCode.resume();
+          if (currentMode === "qr" && html5QrCode) {
+            try { html5QrCode.resume(); } catch(e) {}
+          }
           document.getElementById("result").classList.remove("show");
-        }, 3000);
+        }, 3500);
       }).catch(() => {
-        showResult("Failed to save. Check internet.", "error");
+        showResult("Failed to save. Check internet connection.", "error");
         isScanning = true;
       });
     }
@@ -349,7 +423,10 @@
       const id = document.getElementById("manualId").value.trim();
       const name = document.getElementById("manualName").value.trim();
       const notes = document.getElementById("manualNotes").value.trim();
-      if (!id) return alert("Please enter OSCA ID");
+      if (!id) {
+        alert("Please enter OSCA ID");
+        return;
+      }
       sendToSheet(id, name, notes);
       document.getElementById("manualId").value = "";
       document.getElementById("manualName").value = "";
@@ -357,7 +434,9 @@
     }
 
     // Start with QR mode
-    window.addEventListener("load", () => startQRScanner());
+    window.addEventListener("load", () => {
+      startQRScanner();
+    });
   </script>
 </body>
 </html>

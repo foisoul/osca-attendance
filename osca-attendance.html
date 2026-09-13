@@ -308,7 +308,7 @@
 <body>
   <div class="container">
     <h1>🆔 OSCA Attendance</h1>
-    <p class="subtitle">Smart QR + ID Card Recognition</p>
+    <p class="subtitle">ID Card Recognition</p>
 
     <div class="steps">
       <div class="step active" id="s1">Step 1<br>QR Scan</div>
@@ -488,7 +488,9 @@
         return;
       }
       
-      isProcessing = true;
+      // QR scanning is finished. Reset this flag so the
+      // Capture ID button can work in Step 2.
+      isProcessing = false;
       stopQR();
 
       let id = decodedText.trim();
@@ -521,6 +523,14 @@
     // Camera Control
     async function startCamera() {
       debugLog("Starting camera");
+
+      // Stop any previous camera before opening a new one.
+      stopCamera();
+
+      // Capture must be allowed once Step 2 is reached.
+      isProcessing = false;
+      document.getElementById("btn-capture").disabled = false;
+
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -539,6 +549,9 @@
         // Wait for video to load
         video.onloadedmetadata = () => {
           debugLog("Video metadata loaded, dimensions: " + video.videoWidth + "x" + video.videoHeight);
+
+          // Camera is ready: enable Capture ID.
+          document.getElementById("btn-capture").disabled = false;
         };
         
         await video.play();
@@ -586,6 +599,7 @@
       }
       
       isProcessing = true;
+      document.getElementById("btn-capture").disabled = true;
       show("📸 Capturing photo...", "info");
 
       try {
@@ -761,6 +775,8 @@
       debugLog("Retaking photo");
       document.getElementById("preview").style.display = "none";
       document.getElementById("field-name").value = "";
+      isProcessing = false;
+      document.getElementById("btn-capture").disabled = false;
       setStep(2);
       startCamera();
       show("📷 Align the ID card and capture again.", "info");

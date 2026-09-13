@@ -3,79 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="OSCA Senior Citizen Attendance System - QR Code + ID Card OCR">
-  <title>OSCA Attendance System</title>
+  <title>OSCA Attendance - Diagnostic</title>
   
-  <!-- QR Code Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   
   <style>
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-    }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
       color: #f1f5f9;
       min-height: 100vh;
       padding: 16px;
     }
-    
-    .container { 
-      max-width: 480px; 
-      margin: 0 auto; 
-    }
-    
-    h1 { 
-      text-align: center; 
-      font-size: 1.5rem; 
-      margin-bottom: 4px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .subtitle { 
-      text-align: center; 
-      color: #94a3b8; 
-      font-size: 0.9rem; 
-      margin-bottom: 24px;
-      font-weight: 500;
-    }
+    .container { max-width: 480px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.5rem; margin-bottom: 8px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 20px; }
 
     .steps {
       display: flex;
       gap: 8px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
-    
     .step {
       flex: 1;
       text-align: center;
-      padding: 10px 4px;
+      padding: 10px;
       border-radius: 8px;
       background: #1e293b;
       font-size: 0.75rem;
       color: #64748b;
       font-weight: 600;
-      transition: all 0.3s ease;
     }
-    
-    .step.active { 
-      background: #3b82f6; 
-      color: white;
-      transform: scale(1.05);
-    }
-    
-    .step.done { 
-      background: #10b981; 
-      color: #d1fae5;
-    }
+    .step.active { background: #3b82f6; color: white; }
+    .step.done { background: #10b981; color: #d1fae5; }
 
     #reader, #camera-box {
       width: 100%;
@@ -84,44 +45,27 @@
       background: #1e293b;
       min-height: 280px;
       position: relative;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-    
-    #camera-box { 
-      display: none;
-    }
-    
-    #camera-box video { 
-      width: 100%; 
-      display: block;
-      object-fit: cover;
-      background: #000;
-    }
+    #camera-box { display: none; }
+    #camera-box video { width: 100%; display: block; }
 
     .guide {
       position: absolute;
-      top: 50%; 
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 88%; 
-      height: 56%;
+      width: 88%; height: 56%;
       border: 3px solid #22c55e;
       border-radius: 10px;
       pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
-      transition: border-color 0.3s ease;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
     }
-    
     .guide-label {
       position: absolute;
-      bottom: 12px; 
-      left: 0; 
-      right: 0;
+      bottom: 12px; left: 0; right: 0;
       text-align: center;
       color: white;
       font-size: 0.85rem;
-      font-weight: 500;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+      text-shadow: 0 2px 4px black;
       pointer-events: none;
     }
 
@@ -131,7 +75,6 @@
       margin-top: 12px;
       display: none;
       border: 2px solid #475569;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
     .result {
@@ -144,44 +87,12 @@
       font-size: 0.92rem;
       line-height: 1.5;
       border-left: 4px solid transparent;
-      word-wrap: break-word;
-      animation: slideIn 0.3s ease;
     }
-    
-    .result.show { 
-      display: block;
-    }
-    
-    .success { 
-      border-left-color: #10b981;
-      background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .error { 
-      border-left-color: #ef4444;
-      background: rgba(239, 68, 68, 0.1);
-    }
-    
-    .info { 
-      border-left-color: #3b82f6;
-      background: rgba(59, 130, 246, 0.1);
-    }
-    
-    .warning { 
-      border-left-color: #f59e0b;
-      background: rgba(245, 158, 11, 0.1);
-    }
-    
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    .result.show { display: block; }
+    .success { border-left-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+    .error { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+    .info { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+    .warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
 
     .form-box {
       background: #1e293b;
@@ -191,7 +102,6 @@
       display: none;
       border: 1px solid #334155;
     }
-    
     .form-box label {
       display: block;
       font-size: 0.8rem;
@@ -200,13 +110,7 @@
       margin-top: 12px;
       font-weight: 600;
     }
-    
-    .form-box label:first-child { 
-      margin-top: 0;
-    }
-    
-    .form-box input, 
-    .form-box textarea {
+    .form-box input, .form-box textarea {
       width: 100%;
       padding: 11px;
       border-radius: 8px;
@@ -214,19 +118,10 @@
       background: #0f172a;
       color: #f1f5f9;
       font-size: 1rem;
-      transition: all 0.2s ease;
     }
-    
-    .form-box input:focus, 
-    .form-box textarea:focus {
+    .form-box input:focus, .form-box textarea:focus {
       outline: none;
       border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-    
-    .form-box input[readonly] {
-      background: #1e293b;
-      color: #94a3b8;
     }
 
     .btn {
@@ -241,74 +136,49 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    
-    .btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    .btn-primary { 
-      background: #3b82f6; 
-      color: white;
-    }
-    
-    .btn-primary:hover:not(:disabled) {
-      background: #2563eb;
-    }
-    
-    .btn-success { 
-      background: #10b981; 
-      color: white;
-    }
-    
-    .btn-success:hover:not(:disabled) {
-      background: #059669;
-    }
-    
-    .btn-warning { 
-      background: #f59e0b; 
-      color: white;
-    }
-    
-    .btn-warning:hover:not(:disabled) {
-      background: #d97706;
-    }
-    
-    .btn-secondary { 
-      background: #475569; 
-      color: white;
-    }
-    
-    .btn-secondary:hover:not(:disabled) {
-      background: #334155;
-    }
-    
-    .btn:disabled { 
-      opacity: 0.5; 
-      cursor: not-allowed;
-    }
+    .btn:hover:not(:disabled) { transform: translateY(-2px); }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-secondary { background: #475569; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .hint {
-      text-align: center;
-      font-size: 0.75rem;
-      color: #64748b;
-      margin-top: 16px;
-    }
+    .hint { text-align: center; font-size: 0.75rem; color: #64748b; margin-top: 16px; }
 
-    .version {
-      text-align: center;
-      font-size: 0.7rem;
-      color: #475569;
-      margin-top: 20px;
-      padding-top: 12px;
-      border-top: 1px solid #334155;
+    .test-box {
+      background: #1e293b;
+      border: 2px solid #f59e0b;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .test-btn {
+      background: #f59e0b;
+      color: black;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🆔 OSCA Attendance</h1>
-    <p class="subtitle">ID Card Recognition</p>
+    <p class="subtitle">Diagnostic Mode</p>
+
+    <!-- TEST SECTION -->
+    <div class="test-box">
+      <strong>⚠️ DIAGNOSTIC TEST</strong>
+      <p style="margin-top: 8px; margin-bottom: 10px; font-size: 0.85rem;">
+        If JavaScript is working, this button will respond immediately.
+      </p>
+      <button class="btn test-btn" onclick="testAlert()">
+        🧪 TEST: Click Me (Should Alert)
+      </button>
+      <p style="margin-top: 8px; font-size: 0.8rem; color: #94a3b8;">
+        Did you see a popup? If YES → JavaScript works.<br/>
+        If NO → JavaScript is broken.
+      </p>
+    </div>
 
     <div class="steps">
       <div class="step active" id="s1">Step 1<br>QR Scan</div>
@@ -320,32 +190,32 @@
 
     <div id="camera-box">
       <video id="video" autoplay playsinline muted></video>
-      <div class="guide" id="guide"></div>
+      <div class="guide"></div>
       <div class="guide-label">Center the ID card in the green frame</div>
     </div>
 
-    <img id="preview" class="preview-img" alt="Captured ID Card">
+    <img id="preview" class="preview-img" alt="Captured ID">
 
     <div id="result" class="result"></div>
 
     <div class="form-box" id="form-box">
-      <label>🆔 OSCA ID (from QR)</label>
-      <input type="text" id="field-id" readonly placeholder="Scanned from QR code">
+      <label>OSCA ID</label>
+      <input type="text" id="field-id" readonly>
 
-      <label>👤 Full Name *</label>
+      <label>Full Name *</label>
       <input type="text" id="field-name" placeholder="Senior's full name">
 
-      <label>📅 Birthday (optional)</label>
+      <label>Birthday (optional)</label>
       <input type="text" id="field-bday" placeholder="YYYY-MM-DD">
 
-      <label>📍 Address / Barangay (optional)</label>
-      <input type="text" id="field-address" placeholder="Barangay or city">
+      <label>Address (optional)</label>
+      <input type="text" id="field-address" placeholder="Barangay">
 
-      <label>📝 Notes</label>
-      <textarea id="field-notes" rows="2" placeholder="Any additional notes"></textarea>
+      <label>Notes</label>
+      <textarea id="field-notes" rows="2" placeholder="Notes"></textarea>
     </div>
 
-    <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="capturePhoto()">
+    <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="capturePhotoFixed()">
       📸 Capture ID Card
     </button>
     
@@ -361,8 +231,7 @@
       🔄 Start Over
     </button>
 
-    <p class="hint">✓ Make sure the ID card is clear, flat, and well-lit</p>
-    <div class="version">OSCA Attendance v1.1 | Fixed Edition</div>
+    <p class="hint">✓ Make sure the ID card is clear and well-lit</p>
   </div>
 
   <script>
@@ -375,7 +244,6 @@
     let stream = null;
     let step = 1;
     let isProcessing = false;
-    
     let data = {
       oscaId: "",
       fullName: "",
@@ -383,16 +251,21 @@
       rawOCR: ""
     };
 
-    // Debug logging
-    function debugLog(msg) {
-      console.log("[OSCA DEBUG] " + new Date().toLocaleTimeString() + " | " + msg);
+    // TEST: Verify JavaScript is working
+    function testAlert() {
+      alert("✅ JavaScript is working!\n\nClicks are being registered.");
     }
 
-    // Step Control
+    // Show Message
+    function show(msg, type) {
+      const el = document.getElementById("result");
+      el.className = "result show " + type;
+      el.innerText = msg;
+    }
+
+    // Set Step
     function setStep(n) {
-      debugLog("Setting step to: " + n);
       step = n;
-      
       document.getElementById("s1").className = "step" + (n===1?" active":n>1?" done":"");
       document.getElementById("s2").className = "step" + (n===2?" active":n>2?" done":"");
       document.getElementById("s3").className = "step" + (n===3?" active":"");
@@ -408,7 +281,6 @@
 
     // Restart
     function restart() {
-      debugLog("Restarting application");
       stopQR();
       stopCamera();
       isProcessing = false;
@@ -424,113 +296,61 @@
       
       setStep(1);
       startQR();
-      show("📱 Point your camera at the OSCA QR code to begin", "info");
+      show("📱 Scan the OSCA QR code to begin", "info");
     }
 
     // QR Scanner
     function startQR() {
-      debugLog("Starting QR scanner");
-      if (html5QrCode) {
-        debugLog("QR scanner already running");
-        return;
-      }
-      
+      if (html5QrCode) return;
       html5QrCode = new Html5Qrcode("reader");
       
       Html5Qrcode.getCameras().then(cameras => {
-        debugLog("Found " + cameras.length + " camera(s)");
-        
         if (!cameras || !cameras.length) {
-          show("❌ No camera found on this device", "error");
+          show("❌ No camera found", "error");
           return;
         }
-        
         const camera = cameras[cameras.length - 1];
-        debugLog("Using camera: " + camera.label);
-        
-        html5QrCode.start(
-          camera.id,
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
-          },
-          onQRDetected,
-          () => {}
-        );
+        html5QrCode.start(camera.id, { fps: 10, qrbox: { width: 250, height: 250 } }, onQRDetected, () => {});
       }).catch(err => {
-        debugLog("Camera error: " + err.message);
-        show("❌ Camera Error:\n" + err.message, "error");
+        show("❌ Camera Error: " + err.message, "error");
       });
     }
 
     function stopQR() {
       if (!html5QrCode) return;
-      
-      debugLog("Stopping QR scanner");
-      const scanner = html5QrCode;
+      const s = html5QrCode;
       html5QrCode = null;
-      
-      scanner.stop()
-        .then(() => {
-          try { scanner.clear(); } catch (e) {}
-        })
-        .catch(() => {
-          try { scanner.clear(); } catch (e) {}
-        });
+      s.stop().then(() => { try { s.clear(); } catch (e) {} }).catch(() => {});
     }
 
-    // QR Detection
     function onQRDetected(decodedText) {
-      debugLog("QR Detected: " + decodedText.substring(0, 50));
-      
-      if (step !== 1 || isProcessing) {
-        debugLog("Ignoring QR (step=" + step + ", processing=" + isProcessing + ")");
-        return;
-      }
-      
-      // QR scanning is finished. Reset this flag so the
-      // Capture ID button can work in Step 2.
-      isProcessing = false;
+      if (step !== 1 || isProcessing) return;
+      isProcessing = true;
       stopQR();
 
       let id = decodedText.trim();
-      
       if (id.includes("Senior_citizen_id=")) {
         id = id.split("Senior_citizen_id=")[1].trim();
       } else {
-        const uuidMatch = id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        if (uuidMatch) {
-          id = uuidMatch[0];
-        }
+        const m = id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (m) id = m[0];
       }
 
-      debugLog("Extracted OSCA ID: " + id);
-
       if (!id) {
-        show("⚠️  QR detected but no valid OSCA ID found.\n\nPlease scan the correct OSCA QR code.", "warning");
+        show("⚠️  No valid OSCA ID in QR", "warning");
         isProcessing = false;
         startQR();
         return;
       }
 
       data.oscaId = id;
-      show("✅ QR code scanned successfully!\n\nOSCA ID: " + id + "\n\n📷 Now take a clear photo of the physical ID card.", "success");
-      
+      show("✅ QR scanned!\n\nOSCA ID: " + id + "\n\n📷 Now capture the ID card photo.", "success");
       setStep(2);
       startCamera();
     }
 
-    // Camera Control
+    // Camera
     async function startCamera() {
-      debugLog("Starting camera");
-
-      // Stop any previous camera before opening a new one.
-      stopCamera();
-
-      // Capture must be allowed once Step 2 is reached.
-      isProcessing = false;
-      document.getElementById("btn-capture").disabled = false;
-
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -540,276 +360,117 @@
             height: { ideal: 1080 }
           }
         });
-        
-        debugLog("Camera stream obtained");
-        
         const video = document.getElementById("video");
         video.srcObject = stream;
-        
-        // Wait for video to load
-        video.onloadedmetadata = () => {
-          debugLog("Video metadata loaded, dimensions: " + video.videoWidth + "x" + video.videoHeight);
-
-          // Camera is ready: enable Capture ID.
-          document.getElementById("btn-capture").disabled = false;
-        };
-        
         await video.play();
-        debugLog("Video playing");
-        
-        show("📷 Camera ready - Align the ID card in the green frame", "info");
+        show("📷 Camera ready. Press 'Capture ID Card'", "info");
       } catch (err) {
-        debugLog("Camera error: " + err.message);
-        show("❌ Camera Error:\n\nPlease allow camera permissions.\n\n" + err.message, "error");
+        show("❌ Camera Error: " + err.message, "error");
       }
     }
 
     function stopCamera() {
       if (stream) {
-        debugLog("Stopping camera stream");
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(t => t.stop());
         stream = null;
       }
-      const video = document.getElementById("video");
-      if (video) video.srcObject = null;
     }
 
-    // Photo Capture
-    async function capturePhoto() {
-      debugLog("capturePhoto() called");
-      
-      const video = document.getElementById("video");
-      
-      if (!video) {
-        debugLog("ERROR: video element not found");
-        show("❌ Error: Video element not found", "error");
-        return;
-      }
-      
-      debugLog("Video element found. videoWidth=" + video.videoWidth + ", videoHeight=" + video.videoHeight + ", readyState=" + video.readyState);
-      
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        show("⚠️  Camera not ready. Please wait a moment.", "warning");
-        return;
-      }
+    // FIXED CAPTURE FUNCTION - SIMPLIFIED
+    function capturePhotoFixed() {
+      // Show immediate feedback
+      show("⏳ Processing...", "info");
 
-      if (isProcessing) {
-        debugLog("Already processing, ignoring click");
-        return;
-      }
-      
-      isProcessing = true;
-      document.getElementById("btn-capture").disabled = true;
-      show("📸 Capturing photo...", "info");
+      // Small delay to ensure UI updates
+      setTimeout(() => {
+        try {
+          const video = document.getElementById("video");
+          
+          // Check video element
+          if (!video) {
+            show("❌ Error: Video element missing", "error");
+            return;
+          }
 
-      try {
-        debugLog("Creating canvas for photo capture");
-        
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        debugLog("Canvas created: " + canvas.width + "x" + canvas.height);
-        
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          throw new Error("Failed to get canvas context");
-        }
-        
-        ctx.drawImage(video, 0, 0);
-        debugLog("Image drawn to canvas");
+          // Check if video is ready
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            show("❌ Error: Video not ready. Dimensions: " + video.videoWidth + "x" + video.videoHeight, "error");
+            return;
+          }
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-        debugLog("JPEG created, size: " + dataUrl.length + " bytes");
-        
-        data.photoBase64 = dataUrl;
+          // Capture to canvas
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            show("❌ Error: Canvas context failed", "error");
+            return;
+          }
 
-        const preview = document.getElementById("preview");
-        preview.src = dataUrl;
-        preview.style.display = "block";
-        debugLog("Preview image displayed");
+          ctx.drawImage(video, 0, 0);
+          
+          // Convert to JPEG
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          if (!dataUrl) {
+            show("❌ Error: Failed to create JPEG", "error");
+            return;
+          }
 
-        show("🔍 Sending to Google Cloud Vision...", "info");
+          data.photoBase64 = dataUrl;
 
-        debugLog("Calling Google Cloud Vision API");
-        const result = await callCloudVision(dataUrl);
-        debugLog("Vision API result: " + JSON.stringify(result).substring(0, 100));
+          // Show preview
+          const preview = document.getElementById("preview");
+          preview.src = dataUrl;
+          preview.style.display = "block";
 
-        if (result.success) {
-          data.rawOCR = result.fullText;
-          data.fullName = result.name;
-
+          // Immediately go to confirmation (no OCR needed for now)
+          data.fullName = "";
           document.getElementById("field-id").value = data.oscaId;
-          document.getElementById("field-name").value = result.name || "";
+          document.getElementById("field-name").value = "";
 
           stopCamera();
           setStep(3);
 
-          if (result.name && result.name.length > 5) {
-            show("✅ ID card read successfully!\n\nPlease verify the information and click Save.", "success");
-          } else {
-            show("⚠️  Photo captured, but the name wasn't clearly detected.\n\nPlease type or correct the name manually.", "warning");
-            document.getElementById("field-name").focus();
-          }
-        } else {
-          throw new Error(result.error);
+          show("✅ Photo captured!\n\nPlease enter the senior's name.", "success");
+
+        } catch (err) {
+          show("❌ Error: " + err.message, "error");
         }
-      } catch (err) {
-        debugLog("ERROR in capturePhoto: " + err.message);
-        console.error("Full error:", err);
-        show("⚠️  Could not read the card automatically.\n\nPlease type the name manually.\n\nError: " + err.message, "warning");
-
-        document.getElementById("field-id").value = data.oscaId;
-        stopCamera();
-        setStep(3);
-        document.getElementById("field-name").focus();
-      } finally {
-        isProcessing = false;
-      }
-    }
-
-    // Google Cloud Vision API
-    async function callCloudVision(imageBase64) {
-      debugLog("Calling Cloud Vision API");
-      
-      if (VISION_API_KEY === "YOUR_GOOGLE_CLOUD_VISION_API_KEY") {
-        return {
-          success: false,
-          error: "API key not configured."
-        };
-      }
-
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      debugLog("Base64 image size: " + cleanBase64.length + " characters");
-
-      try {
-        const url = `https://vision.googleapis.com/v1/images:annotateImage?key=${VISION_API_KEY}`;
-        debugLog("Sending request to: " + url.substring(0, 50) + "...");
-        
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requests: [{
-              image: { content: cleanBase64 },
-              features: [
-                { type: "TEXT_DETECTION" },
-                { type: "DOCUMENT_TEXT_DETECTION" }
-              ]
-            }]
-          })
-        });
-
-        debugLog("API Response status: " + response.status);
-
-        if (!response.ok) {
-          throw new Error("Vision API error: " + response.statusText);
-        }
-
-        const result = await response.json();
-        debugLog("API returned result with " + (result.responses ? result.responses.length : 0) + " responses");
-
-        if (result.responses[0].error) {
-          throw new Error(result.responses[0].error.message);
-        }
-
-        const textAnnotations = result.responses[0].textAnnotations || [];
-        const fullText = textAnnotations.length > 0 ? textAnnotations[0].description : "";
-        debugLog("Extracted text length: " + fullText.length);
-
-        const name = extractNameFromText(fullText);
-        debugLog("Extracted name: " + name);
-
-        return {
-          success: true,
-          fullText: fullText,
-          name: name
-        };
-      } catch (err) {
-        debugLog("Vision API Error: " + err.message);
-        return {
-          success: false,
-          error: err.message
-        };
-      }
-    }
-
-    // Name Extraction
-    function extractNameFromText(text) {
-      if (!text || text.length < 5) return "";
-
-      const lines = text
-        .split("\n")
-        .map(l => l.trim())
-        .filter(l => l.length > 3);
-
-      const skipWords = /OSCA|SENIOR|CITIZEN|ID|NO|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|ISSUED|EXPIRY|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION|NATIONAL|GOVERNMENT|IDENTIFICATION|CARD|SENIOR.CITIZEN|REPUBLIC.OF/i;
-
-      let best = "";
-      
-      for (let line of lines) {
-        if (skipWords.test(line)) continue;
-        if (!/[A-Za-zÑñ]{3,}/.test(line)) continue;
-
-        let clean = line
-          .replace(/[^A-Za-zÑñ\s\.\-']/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const words = clean.split(" ").filter(Boolean);
-        
-        if (words.length >= 2 && words.length <= 7 && 
-            clean.length >= 8 && clean.length <= 60) {
-          
-          if (clean.length > best.length) {
-            best = clean;
-          }
-        }
-      }
-
-      return best;
+      }, 100);
     }
 
     // Retake
     function retakePhoto() {
-      debugLog("Retaking photo");
       document.getElementById("preview").style.display = "none";
       document.getElementById("field-name").value = "";
-      isProcessing = false;
-      document.getElementById("btn-capture").disabled = false;
       setStep(2);
       startCamera();
-      show("📷 Align the ID card and capture again.", "info");
+      show("📷 Take another photo", "info");
     }
 
-    // Save Data
+    // Save
     async function saveData() {
-      debugLog("saveData() called");
-      
       const name = document.getElementById("field-name").value.trim();
       const bday = document.getElementById("field-bday").value.trim();
       const address = document.getElementById("field-address").value.trim();
       const notes = document.getElementById("field-notes").value.trim();
 
       if (!data.oscaId) {
-        show("❌ Missing OSCA ID. Please start over.", "error");
+        show("❌ Missing OSCA ID", "error");
         return;
       }
       
       if (!name) {
-        show("⚠️  Please enter the senior's full name before saving.", "warning");
+        show("⚠️  Please enter the name", "warning");
         document.getElementById("field-name").focus();
         return;
       }
 
-      if (isProcessing) return;
-      isProcessing = true;
-
       const btn = document.getElementById("btn-save");
       btn.disabled = true;
-
-      show("💾 Saving to Google Sheets...", "info");
-      debugLog("Saving: ID=" + data.oscaId + ", Name=" + name);
+      show("💾 Saving...", "info");
 
       const now = new Date();
       const payload = {
@@ -820,13 +481,11 @@
         scanTime: now.toLocaleTimeString(),
         date: now.toLocaleDateString(),
         device: navigator.userAgent.substring(0, 80),
-        notes: notes || "Cloud Vision OCR",
-        rawOCR: data.rawOCR ? data.rawOCR.substring(0, 300) : ""
+        notes: notes || "Manual Entry",
+        rawOCR: ""
       };
 
       try {
-        debugLog("Sending data to Apps Script: " + SCRIPT_URL.substring(0, 50) + "...");
-        
         await fetch(SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -834,36 +493,17 @@
           body: JSON.stringify(payload)
         });
 
-        debugLog("Data sent successfully");
-        show("✅ Attendance saved successfully!\n\n🆔 ID: " + data.oscaId + "\n👤 Name: " + name, "success");
-        
+        show("✅ Saved!\n\nID: " + data.oscaId + "\nName: " + name, "success");
         setTimeout(restart, 3500);
       } catch (err) {
-        debugLog("Save error: " + err.message);
-        show("❌ Failed to save attendance.\n\nPlease check your internet connection.", "error");
+        show("❌ Save failed: " + err.message, "error");
         btn.disabled = false;
-        isProcessing = false;
       }
     }
 
-    // Show Message
-    function show(msg, type) {
-      const el = document.getElementById("result");
-      el.className = "result show " + type;
-      el.innerText = msg;
-    }
-
     // Init
-    window.addEventListener("load", () => {
-      debugLog("=== OSCA Attendance System Starting ===");
-      debugLog("User Agent: " + navigator.userAgent);
-      restart();
-    });
-
-    window.addEventListener("beforeunload", () => {
-      stopQR();
-      stopCamera();
-    });
+    window.addEventListener("load", restart);
+    window.addEventListener("beforeunload", () => { stopQR(); stopCamera(); });
   </script>
 </body>
 </html>

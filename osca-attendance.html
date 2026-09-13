@@ -48,7 +48,6 @@
       font-weight: 500;
     }
 
-    /* Step Indicator */
     .steps {
       display: flex;
       gap: 8px;
@@ -78,7 +77,6 @@
       color: #d1fae5;
     }
 
-    /* Camera Elements */
     #reader, #camera-box {
       width: 100%;
       border-radius: 12px;
@@ -97,9 +95,9 @@
       width: 100%; 
       display: block;
       object-fit: cover;
+      background: #000;
     }
 
-    /* Guide Frame for ID Card */
     .guide {
       position: absolute;
       top: 50%; 
@@ -112,11 +110,6 @@
       pointer-events: none;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
       transition: border-color 0.3s ease;
-    }
-    
-    .guide.capturing {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45), 0 0 20px rgba(59, 130, 246, 0.5);
     }
     
     .guide-label {
@@ -132,7 +125,6 @@
       pointer-events: none;
     }
 
-    /* Preview Image */
     .preview-img {
       width: 100%;
       border-radius: 10px;
@@ -142,7 +134,6 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
-    /* Result Messages */
     .result {
       margin-top: 14px;
       padding: 14px;
@@ -192,7 +183,6 @@
       }
     }
 
-    /* Form */
     .form-box {
       background: #1e293b;
       border-radius: 12px;
@@ -209,8 +199,6 @@
       margin-bottom: 6px;
       margin-top: 12px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     
     .form-box label:first-child { 
@@ -239,10 +227,8 @@
     .form-box input[readonly] {
       background: #1e293b;
       color: #94a3b8;
-      cursor: not-allowed;
     }
 
-    /* Buttons */
     .btn {
       display: block;
       width: 100%;
@@ -254,8 +240,6 @@
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     
     .btn:hover:not(:disabled) {
@@ -302,10 +286,8 @@
     .btn:disabled { 
       opacity: 0.5; 
       cursor: not-allowed;
-      transform: none;
     }
 
-    /* Hint Text */
     .hint {
       text-align: center;
       font-size: 0.75rem;
@@ -313,7 +295,6 @@
       margin-top: 16px;
     }
 
-    /* Version Badge */
     .version {
       text-align: center;
       font-size: 0.7rem;
@@ -326,33 +307,27 @@
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
     <h1>🆔 OSCA Attendance</h1>
     <p class="subtitle">Smart QR + ID Card Recognition</p>
 
-    <!-- Step Progress Indicator -->
     <div class="steps">
       <div class="step active" id="s1">Step 1<br>QR Scan</div>
       <div class="step" id="s2">Step 2<br>ID Photo</div>
       <div class="step" id="s3">Step 3<br>Confirm</div>
     </div>
 
-    <!-- Step 1: QR Code Scanner -->
     <div id="reader"></div>
 
-    <!-- Step 2: Camera for ID Card -->
     <div id="camera-box">
       <video id="video" autoplay playsinline muted></video>
       <div class="guide" id="guide"></div>
       <div class="guide-label">Center the ID card in the green frame</div>
     </div>
 
-    <!-- Step 3: Preview and Confirmation Form -->
     <img id="preview" class="preview-img" alt="Captured ID Card">
 
     <div id="result" class="result"></div>
 
-    <!-- Confirmation Form -->
     <div class="form-box" id="form-box">
       <label>🆔 OSCA ID (from QR)</label>
       <input type="text" id="field-id" readonly placeholder="Scanned from QR code">
@@ -361,7 +336,7 @@
       <input type="text" id="field-name" placeholder="Senior's full name">
 
       <label>📅 Birthday (optional)</label>
-      <input type="text" id="field-bday" placeholder="YYYY-MM-DD or MM/DD/YYYY">
+      <input type="text" id="field-bday" placeholder="YYYY-MM-DD">
 
       <label>📍 Address / Barangay (optional)</label>
       <input type="text" id="field-address" placeholder="Barangay or city">
@@ -370,7 +345,6 @@
       <textarea id="field-notes" rows="2" placeholder="Any additional notes"></textarea>
     </div>
 
-    <!-- Action Buttons -->
     <button class="btn btn-primary" id="btn-capture" style="display:none;" onclick="capturePhoto()">
       📸 Capture ID Card
     </button>
@@ -388,25 +362,15 @@
     </button>
 
     <p class="hint">✓ Make sure the ID card is clear, flat, and well-lit</p>
-    <div class="version">OSCA Attendance v1.0 | Powered by Google Cloud Vision</div>
+    <div class="version">OSCA Attendance v1.1 | Fixed Edition</div>
   </div>
 
   <script>
-    // ==========================================
-    // CONFIGURATION - Ready to Deploy
-    // ==========================================
-    
-    // Google Cloud Vision API Key
-    // (Already configured with your key)
+    // Configuration
     const VISION_API_KEY = "AIzaSyAiAAIzuMscE0lANn9Zp0O1U-1LEpSaqq8";
-    
-    // Google Apps Script URL for saving data
-    // (Already configured with your script)
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHfbd6o1Sy-uUi3RpnvU0gxcT6hvPhLoEIbUIRLteW_n4RjwzazjGSAY62WCtLOSAG/exec";
 
-    // ==========================================
-    // APPLICATION STATE
-    // ==========================================
+    // State
     let html5QrCode = null;
     let stream = null;
     let step = 1;
@@ -419,18 +383,20 @@
       rawOCR: ""
     };
 
-    // ==========================================
-    // STEP CONTROL
-    // ==========================================
+    // Debug logging
+    function debugLog(msg) {
+      console.log("[OSCA DEBUG] " + new Date().toLocaleTimeString() + " | " + msg);
+    }
+
+    // Step Control
     function setStep(n) {
+      debugLog("Setting step to: " + n);
       step = n;
       
-      // Update step indicators
       document.getElementById("s1").className = "step" + (n===1?" active":n>1?" done":"");
       document.getElementById("s2").className = "step" + (n===2?" active":n>2?" done":"");
       document.getElementById("s3").className = "step" + (n===3?" active":"");
 
-      // Show/hide content for current step
       document.getElementById("reader").style.display = n===1 ? "block" : "none";
       document.getElementById("camera-box").style.display = n===2 ? "block" : "none";
       document.getElementById("btn-capture").style.display = n===2 ? "block" : "none";
@@ -440,10 +406,9 @@
       document.getElementById("preview").style.display = n===3 ? "block" : "none";
     }
 
-    // ==========================================
-    // RESTART / RESET
-    // ==========================================
+    // Restart
     function restart() {
+      debugLog("Restarting application");
       stopQR();
       stopCamera();
       isProcessing = false;
@@ -462,34 +427,38 @@
       show("📱 Point your camera at the OSCA QR code to begin", "info");
     }
 
-    // ==========================================
-    // QR CODE SCANNER
-    // ==========================================
+    // QR Scanner
     function startQR() {
-      if (html5QrCode) return;
+      debugLog("Starting QR scanner");
+      if (html5QrCode) {
+        debugLog("QR scanner already running");
+        return;
+      }
       
       html5QrCode = new Html5Qrcode("reader");
       
       Html5Qrcode.getCameras().then(cameras => {
+        debugLog("Found " + cameras.length + " camera(s)");
+        
         if (!cameras || !cameras.length) {
           show("❌ No camera found on this device", "error");
           return;
         }
         
-        // Use rear camera (usually last in array)
         const camera = cameras[cameras.length - 1];
+        debugLog("Using camera: " + camera.label);
         
         html5QrCode.start(
           camera.id,
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
+            qrbox: { width: 250, height: 250 }
           },
           onQRDetected,
           () => {}
         );
       }).catch(err => {
+        debugLog("Camera error: " + err.message);
         show("❌ Camera Error:\n" + err.message, "error");
       });
     }
@@ -497,6 +466,7 @@
     function stopQR() {
       if (!html5QrCode) return;
       
+      debugLog("Stopping QR scanner");
       const scanner = html5QrCode;
       html5QrCode = null;
       
@@ -509,28 +479,30 @@
         });
     }
 
-    // ==========================================
-    // QR DETECTION HANDLER
-    // ==========================================
+    // QR Detection
     function onQRDetected(decodedText) {
-      if (step !== 1 || isProcessing) return;
+      debugLog("QR Detected: " + decodedText.substring(0, 50));
+      
+      if (step !== 1 || isProcessing) {
+        debugLog("Ignoring QR (step=" + step + ", processing=" + isProcessing + ")");
+        return;
+      }
       
       isProcessing = true;
       stopQR();
 
-      // Extract OSCA ID from QR text
       let id = decodedText.trim();
       
-      // Try different formats
       if (id.includes("Senior_citizen_id=")) {
         id = id.split("Senior_citizen_id=")[1].trim();
       } else {
-        // Try UUID format
         const uuidMatch = id.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
         if (uuidMatch) {
           id = uuidMatch[0];
         }
       }
+
+      debugLog("Extracted OSCA ID: " + id);
 
       if (!id) {
         show("⚠️  QR detected but no valid OSCA ID found.\n\nPlease scan the correct OSCA QR code.", "warning");
@@ -546,10 +518,9 @@
       startCamera();
     }
 
-    // ==========================================
-    // CAMERA CONTROL
-    // ==========================================
+    // Camera Control
     async function startCamera() {
+      debugLog("Starting camera");
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -560,18 +531,29 @@
           }
         });
         
+        debugLog("Camera stream obtained");
+        
         const video = document.getElementById("video");
         video.srcObject = stream;
+        
+        // Wait for video to load
+        video.onloadedmetadata = () => {
+          debugLog("Video metadata loaded, dimensions: " + video.videoWidth + "x" + video.videoHeight);
+        };
+        
         await video.play();
+        debugLog("Video playing");
         
         show("📷 Camera ready - Align the ID card in the green frame", "info");
       } catch (err) {
+        debugLog("Camera error: " + err.message);
         show("❌ Camera Error:\n\nPlease allow camera permissions.\n\n" + err.message, "error");
       }
     }
 
     function stopCamera() {
       if (stream) {
+        debugLog("Stopping camera stream");
         stream.getTracks().forEach(track => track.stop());
         stream = null;
       }
@@ -579,48 +561,70 @@
       if (video) video.srcObject = null;
     }
 
-    // ==========================================
-    // PHOTO CAPTURE & OCR
-    // ==========================================
+    // Photo Capture
     async function capturePhoto() {
+      debugLog("capturePhoto() called");
+      
       const video = document.getElementById("video");
       
-      if (!video || video.videoWidth === 0) {
+      if (!video) {
+        debugLog("ERROR: video element not found");
+        show("❌ Error: Video element not found", "error");
+        return;
+      }
+      
+      debugLog("Video element found. videoWidth=" + video.videoWidth + ", videoHeight=" + video.videoHeight + ", readyState=" + video.readyState);
+      
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
         show("⚠️  Camera not ready. Please wait a moment.", "warning");
         return;
       }
 
-      if (isProcessing) return;
+      if (isProcessing) {
+        debugLog("Already processing, ignoring click");
+        return;
+      }
+      
       isProcessing = true;
-
       show("📸 Capturing photo...", "info");
 
       try {
-        // Capture high-quality frame
+        debugLog("Creating canvas for photo capture");
+        
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        
+        debugLog("Canvas created: " + canvas.width + "x" + canvas.height);
+        
         const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          throw new Error("Failed to get canvas context");
+        }
+        
         ctx.drawImage(video, 0, 0);
+        debugLog("Image drawn to canvas");
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        debugLog("JPEG created, size: " + dataUrl.length + " bytes");
+        
         data.photoBase64 = dataUrl;
 
-        // Show preview
         const preview = document.getElementById("preview");
         preview.src = dataUrl;
         preview.style.display = "block";
+        debugLog("Preview image displayed");
 
         show("🔍 Sending to Google Cloud Vision...", "info");
 
-        // Call Cloud Vision API
+        debugLog("Calling Google Cloud Vision API");
         const result = await callCloudVision(dataUrl);
+        debugLog("Vision API result: " + JSON.stringify(result).substring(0, 100));
 
         if (result.success) {
           data.rawOCR = result.fullText;
           data.fullName = result.name;
 
-          // Fill form with detected data
           document.getElementById("field-id").value = data.oscaId;
           document.getElementById("field-name").value = result.name || "";
 
@@ -637,7 +641,8 @@
           throw new Error(result.error);
         }
       } catch (err) {
-        console.error("OCR Error:", err);
+        debugLog("ERROR in capturePhoto: " + err.message);
+        console.error("Full error:", err);
         show("⚠️  Could not read the card automatically.\n\nPlease type the name manually.\n\nError: " + err.message, "warning");
 
         document.getElementById("field-id").value = data.oscaId;
@@ -649,11 +654,10 @@
       }
     }
 
-    // ==========================================
-    // GOOGLE CLOUD VISION API
-    // ==========================================
+    // Google Cloud Vision API
     async function callCloudVision(imageBase64) {
-      // Check if API key is configured
+      debugLog("Calling Cloud Vision API");
+      
       if (VISION_API_KEY === "YOUR_GOOGLE_CLOUD_VISION_API_KEY") {
         return {
           success: false,
@@ -662,30 +666,34 @@
       }
 
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      debugLog("Base64 image size: " + cleanBase64.length + " characters");
 
       try {
-        const response = await fetch(
-          `https://vision.googleapis.com/v1/images:annotateImage?key=${VISION_API_KEY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              requests: [{
-                image: { content: cleanBase64 },
-                features: [
-                  { type: "TEXT_DETECTION" },
-                  { type: "DOCUMENT_TEXT_DETECTION" }
-                ]
-              }]
-            })
-          }
-        );
+        const url = `https://vision.googleapis.com/v1/images:annotateImage?key=${VISION_API_KEY}`;
+        debugLog("Sending request to: " + url.substring(0, 50) + "...");
+        
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requests: [{
+              image: { content: cleanBase64 },
+              features: [
+                { type: "TEXT_DETECTION" },
+                { type: "DOCUMENT_TEXT_DETECTION" }
+              ]
+            }]
+          })
+        });
+
+        debugLog("API Response status: " + response.status);
 
         if (!response.ok) {
           throw new Error("Vision API error: " + response.statusText);
         }
 
         const result = await response.json();
+        debugLog("API returned result with " + (result.responses ? result.responses.length : 0) + " responses");
 
         if (result.responses[0].error) {
           throw new Error(result.responses[0].error.message);
@@ -693,9 +701,10 @@
 
         const textAnnotations = result.responses[0].textAnnotations || [];
         const fullText = textAnnotations.length > 0 ? textAnnotations[0].description : "";
+        debugLog("Extracted text length: " + fullText.length);
 
-        // Extract senior's name from OCR text
         const name = extractNameFromText(fullText);
+        debugLog("Extracted name: " + name);
 
         return {
           success: true,
@@ -703,6 +712,7 @@
           name: name
         };
       } catch (err) {
+        debugLog("Vision API Error: " + err.message);
         return {
           success: false,
           error: err.message
@@ -710,9 +720,7 @@
       }
     }
 
-    // ==========================================
-    // NAME EXTRACTION FROM OCR TEXT
-    // ==========================================
+    // Name Extraction
     function extractNameFromText(text) {
       if (!text || text.length < 5) return "";
 
@@ -721,19 +729,14 @@
         .map(l => l.trim())
         .filter(l => l.length > 3);
 
-      // Words that are likely NOT names
       const skipWords = /OSCA|SENIOR|CITIZEN|ID|NO|NUMBER|BIRTH|DATE|ADDRESS|PHILIPPINES|REPUBLIC|OFFICE|GENDER|SEX|AGE|VALID|SIGNATURE|ISSUED|EXPIRY|CONTROL|CITY|MUNICIPALITY|PROVINCE|BARANGAY|REGION|NATIONAL|GOVERNMENT|IDENTIFICATION|CARD|SENIOR.CITIZEN|REPUBLIC.OF/i;
 
       let best = "";
       
       for (let line of lines) {
-        // Skip known non-name lines
         if (skipWords.test(line)) continue;
-        
-        // Must contain letters
         if (!/[A-Za-zÑñ]{3,}/.test(line)) continue;
 
-        // Clean the line
         let clean = line
           .replace(/[^A-Za-zÑñ\s\.\-']/g, " ")
           .replace(/\s+/g, " ")
@@ -741,11 +744,9 @@
 
         const words = clean.split(" ").filter(Boolean);
         
-        // Name should be 2-7 words, 8-60 characters
         if (words.length >= 2 && words.length <= 7 && 
             clean.length >= 8 && clean.length <= 60) {
           
-          // Prefer longer names (more likely to be full name)
           if (clean.length > best.length) {
             best = clean;
           }
@@ -755,10 +756,9 @@
       return best;
     }
 
-    // ==========================================
-    // RETAKE PHOTO
-    // ==========================================
+    // Retake
     function retakePhoto() {
+      debugLog("Retaking photo");
       document.getElementById("preview").style.display = "none";
       document.getElementById("field-name").value = "";
       setStep(2);
@@ -766,16 +766,15 @@
       show("📷 Align the ID card and capture again.", "info");
     }
 
-    // ==========================================
-    // SAVE DATA TO GOOGLE SHEETS
-    // ==========================================
+    // Save Data
     async function saveData() {
+      debugLog("saveData() called");
+      
       const name = document.getElementById("field-name").value.trim();
       const bday = document.getElementById("field-bday").value.trim();
       const address = document.getElementById("field-address").value.trim();
       const notes = document.getElementById("field-notes").value.trim();
 
-      // Validation
       if (!data.oscaId) {
         show("❌ Missing OSCA ID. Please start over.", "error");
         return;
@@ -794,6 +793,7 @@
       btn.disabled = true;
 
       show("💾 Saving to Google Sheets...", "info");
+      debugLog("Saving: ID=" + data.oscaId + ", Name=" + name);
 
       const now = new Date();
       const payload = {
@@ -809,6 +809,8 @@
       };
 
       try {
+        debugLog("Sending data to Apps Script: " + SCRIPT_URL.substring(0, 50) + "...");
+        
         await fetch(SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -816,31 +818,29 @@
           body: JSON.stringify(payload)
         });
 
+        debugLog("Data sent successfully");
         show("✅ Attendance saved successfully!\n\n🆔 ID: " + data.oscaId + "\n👤 Name: " + name, "success");
         
-        // Auto-restart after 3 seconds
         setTimeout(restart, 3500);
       } catch (err) {
-        console.error("Save error:", err);
+        debugLog("Save error: " + err.message);
         show("❌ Failed to save attendance.\n\nPlease check your internet connection.", "error");
         btn.disabled = false;
         isProcessing = false;
       }
     }
 
-    // ==========================================
-    // UI MESSAGING
-    // ==========================================
+    // Show Message
     function show(msg, type) {
       const el = document.getElementById("result");
       el.className = "result show " + type;
       el.innerText = msg;
     }
 
-    // ==========================================
-    // INITIALIZATION
-    // ==========================================
+    // Init
     window.addEventListener("load", () => {
+      debugLog("=== OSCA Attendance System Starting ===");
+      debugLog("User Agent: " + navigator.userAgent);
       restart();
     });
 
